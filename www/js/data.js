@@ -1,0 +1,126 @@
+// Roundly data layer
+// Everything lives in localStorage as JSON. No server, no database.
+// Shape:
+//   customers: [{ id, name, address, lat, lng, phone, email, notes,
+//                 price, frequencyWeeks, status, order }]
+//   visits:    [{ id, customerId, date, priceCharged, paid, notes }]
+//   settings:  { lastBackup }
+
+const STORE_KEY = 'roundly_data_v1';
+
+function loadStore() {
+  const raw = localStorage.getItem(STORE_KEY);
+  if (!raw) {
+    return { customers: [], visits: [], settings: {} };
+  }
+  try {
+    return JSON.parse(raw);
+  } catch (e) {
+    console.error('Roundly: corrupt store, starting fresh', e);
+    return { customers: [], visits: [], settings: {} };
+  }
+}
+
+function saveStore(store) {
+  localStorage.setItem(STORE_KEY, JSON.stringify(store));
+}
+
+function uid() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+}
+
+const Data = {
+  getCustomers(includeArchived = false) {
+    const store = loadStore();
+    return store.customers
+      .filter(c => includeArchived || c.status !== 'archived')
+      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  },
+
+  addCustomer(customer) {
+    const store = loadStore();
+    const record = {
+      id: uid(),
+      name: customer.name || '',
+      address: customer.address || '',
+      lat: customer.lat ?? null,
+      lng: customer.lng ?? null,
+      phone: customer.phone || '',
+      email: customer.email || '',
+      notes: customer.notes || '',
+      price: Number(customer.price) || 0,
+      frequencyWeeks: Number(customer.frequencyWeeks) || 4,
+      status: 'active',
+      order: store.customers.length
+    };
+    store.customers.push(record);
+    saveStore(store);
+    return record;
+  },
+
+  updateCustomer(id, updates) {
+    const store = loadStore();
+    const idx = store.customers.findIndex(c => c.id === id);
+    if (idx === -1) return null;
+    store.customers[idx] = { ...store.customers[idx], ...updates };
+    saveStore(store);
+    return store.customers[idx];
+  },
+
+  setCustomerStatus(id, status) {
+    return this.updateCustomer(id, { status });
+  },
+
+  reorderCustomers(orderedIds) {
+    const store = loadStore();
+    orderedIds.forEach((id, i) => {
+      const c = store.customers.find(x => x.id === id);
+      if (c) c.order = i;
+    });
+    saveStore(store);
+  },
+
+  addVisit(visit) {
+    const store = loadStore();
+    const record = {
+      id: uid(),
+      customerId: visit.customerId,
+      date: visit.date || new Date().toISOString().slice(0, 10),
+      priceCharged: Number(visit.priceCharged) || 0,
+      paid: Boolean(visit.paid),
+      notes: visit.notes || ''
+    };
+    store.visits.push(record);
+    saveStore(store);
+    return record;
+  },
+
+  getVisitsForCustomer(customerId) {
+    const store = loadStore();
+    return store.visits.filter(v => v.customerId === customerId);
+  },
+
+  // Weekly local backup: exports the whole store as a JSON blob.
+  // Called on app open if more than 7 days have passed since last backup.
+  // Overwrites the single backup file each time rather than accumulating.
+  exportBackup() {
+    const store = loadStore();
+    store.settings.lastBackup = new Date().toISOString();
+    saveStore(store);
+    const blob = new Blob([JSON.stringify(store, null, 2)], { type: 'application/json' });
+    return blob;
+  },
+
+  needsBackup() {
+    const store = loadStore();
+    if (!store.settings.lastBackup) return true;
+    const last = new Date(store.settings.lastBackup);
+    const days = (Date.now() - last.getTime()) / (1000 * 60 * 60 * 24);
+    return days >= 7;
+  },
+
+  importBackup(json) {
+    const parsed = JSON.parse(json);
+    saveStore(parsed);
+  }
+};
