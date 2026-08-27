@@ -181,9 +181,20 @@ function openCustomerModal(customer) {
         <button class="secondary" id="f-cancel">Cancel</button>
         <button class="primary" id="f-save">${isEdit ? 'Save changes' : 'Add customer'}</button>
       </div>
+      ${isEdit ? `<button class="secondary" id="f-delete" style="width:100%; margin-top:8px; color:#A32D2D; border-color:#F09595;">Delete customer</button>` : ''}
     </div>
   `;
   document.body.appendChild(backdrop);
+
+  if (isEdit) {
+    backdrop.querySelector('#f-delete').onclick = () => {
+      if (confirm(`Delete ${customer.name}? This can't be undone.`)) {
+        Data.deleteCustomer(customer.id);
+        backdrop.remove();
+        render();
+      }
+    };
+  }
 
   backdrop.querySelector('#f-cancel').onclick = () => backdrop.remove();
   backdrop.querySelector('#f-save').onclick = () => {
