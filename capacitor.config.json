@@ -1,0 +1,6 @@
+{
+  "appId": "com.roundly.app",
+  "appName": "Roundly",
+  "webDir": "www",
+  "bundledWebRuntime": false
+}
