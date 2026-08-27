@@ -122,5 +122,12 @@ const Data = {
   importBackup(json) {
     const parsed = JSON.parse(json);
     saveStore(parsed);
+  },
+
+  deleteCustomer(id) {
+    const store = loadStore();
+    store.customers = store.customers.filter(c => c.id !== id);
+    store.visits = store.visits.filter(v => v.customerId !== id);
+    saveStore(store);
   }
 };
