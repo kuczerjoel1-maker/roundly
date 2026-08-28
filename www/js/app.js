@@ -2,6 +2,15 @@
 let currentScreen = 'home'; // home | roundPicker | route | customers | rounds | expenses
 let activeRoundId = null;   // null = "all customers" round
 
+window.addEventListener('error', (e) => {
+  const app = document.getElementById('app');
+  if (!app) return;
+  const banner = document.createElement('div');
+  banner.style.cssText = 'padding:14px; background:#FBEAE8; border:1px solid #C0392B; border-radius:8px; margin-bottom:14px; font-size:13px; font-family:monospace; white-space:pre-wrap;';
+  banner.textContent = 'Error: ' + e.message + ' (line ' + e.lineno + ')';
+  app.prepend(banner);
+});
+
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }
@@ -33,39 +42,47 @@ function escapeHtml(str) {
 }
 
 function render() {
-  const app = document.getElementById('app');
-  app.innerHTML = '';
+  try {
+    const app = document.getElementById('app');
+    app.innerHTML = '';
 
-  if (currentScreen === 'home') {
-    app.appendChild(renderHome());
-  } else {
-    app.appendChild(renderBackBar());
-    app.appendChild(renderHeader());
-    if (currentScreen === 'roundPicker') app.appendChild(renderRoundPicker());
-    if (currentScreen === 'route') app.appendChild(renderRoute());
-    if (currentScreen === 'customers') app.appendChild(renderCustomers());
-    if (currentScreen === 'rounds') app.appendChild(renderRounds());
-    if (currentScreen === 'expenses') app.appendChild(renderExpensesStub());
-  }
+    if (currentScreen === 'home') {
+      app.appendChild(renderHome());
+    } else {
+      app.appendChild(renderBackBar());
+      app.appendChild(renderHeader());
+      if (currentScreen === 'roundPicker') app.appendChild(renderRoundPicker());
+      if (currentScreen === 'route') app.appendChild(renderRoute());
+      if (currentScreen === 'customers') app.appendChild(renderCustomers());
+      if (currentScreen === 'rounds') app.appendChild(renderRounds());
+      if (currentScreen === 'expenses') app.appendChild(renderExpensesStub());
+    }
 
-  if (currentScreen === 'route' || currentScreen === 'customers') {
-    const fab = document.createElement('button');
-    fab.className = 'fab';
-    fab.textContent = '+';
-    fab.setAttribute('aria-label', 'Add customer');
-    fab.onclick = () => openCustomerModal();
-    app.appendChild(fab);
-  }
-  if (currentScreen === 'rounds') {
-    const fab = document.createElement('button');
-    fab.className = 'fab';
-    fab.textContent = '+';
-    fab.setAttribute('aria-label', 'Add round');
-    fab.onclick = () => openRoundModal();
-    app.appendChild(fab);
-  }
+    if (currentScreen === 'route' || currentScreen === 'customers') {
+      const fab = document.createElement('button');
+      fab.className = 'fab';
+      fab.textContent = '+';
+      fab.setAttribute('aria-label', 'Add customer');
+      fab.onclick = () => openCustomerModal();
+      app.appendChild(fab);
+    }
+    if (currentScreen === 'rounds') {
+      const fab = document.createElement('button');
+      fab.className = 'fab';
+      fab.textContent = '+';
+      fab.setAttribute('aria-label', 'Add round');
+      fab.onclick = () => openRoundModal();
+      app.appendChild(fab);
+    }
 
-  maybeRunBackup();
+    maybeRunBackup();
+  } catch (err) {
+    const app = document.getElementById('app');
+    app.innerHTML = `<div style="padding:20px; background:#FBEAE8; border:1px solid #C0392B; border-radius:8px; margin-top:20px;">
+      <div style="font-weight:700; color:#C0392B; margin-bottom:8px;">Something went wrong</div>
+      <div style="font-size:13px; color:#1C1C1A; white-space:pre-wrap; font-family:monospace;">${escapeHtml(err.message)}\n\n${escapeHtml(err.stack || '')}</div>
+    </div>`;
+  }
 }
 
 function renderBackBar() {
