@@ -131,6 +131,33 @@ const Data = {
     return store.customers.filter(c => c.roundId === id && c.status !== 'archived').length;
   },
 
+  // All visits made by any customer (including archived) currently assigned to this round
+  getVisitsForRound(roundId) {
+    const store = loadStore();
+    const customerIds = store.customers.filter(c => c.roundId === roundId).map(c => c.id);
+    return store.visits.filter(v => customerIds.includes(v.customerId));
+  },
+
+  // Work history + who owes money, for the Round detail screen
+  getRoundStats(roundId) {
+    const store = loadStore();
+    const visits = this.getVisitsForRound(roundId);
+    const dateCounts = {};
+    visits.forEach(v => { dateCounts[v.date] = (dateCounts[v.date] || 0) + 1; });
+    const dates = Object.keys(dateCounts).sort((a, b) => b.localeCompare(a))
+      .map(date => ({ date, count: dateCounts[date] }));
+
+    const customers = store.customers.filter(c => c.roundId === roundId);
+    const owing = customers.map(c => {
+      const owed = store.visits
+        .filter(v => v.customerId === c.id && !v.paid)
+        .reduce((sum, v) => sum + v.priceCharged, 0);
+      return { customer: c, owed };
+    }).filter(x => x.owed > 0).sort((a, b) => b.owed - a.owed);
+
+    return { timesWorked: dates.length, dates, owing };
+  },
+
   // --- Visits ---
   addVisit(visit) {
     const store = loadStore();

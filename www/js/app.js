@@ -1,5 +1,5 @@
 // Roundly app shell
-let currentScreen = 'home'; // home | roundPicker | route | customers | rounds | expenses
+let currentScreen = 'home'; // home | roundPicker | route | customers | rounds | roundDetail | expenses
 let activeRoundId = null;   // null = "all customers" round
 
 window.addEventListener('error', (e) => {
@@ -138,6 +138,7 @@ function render() {
       if (currentScreen === 'route') app.appendChild(renderRoute());
       if (currentScreen === 'customers') app.appendChild(renderCustomers());
       if (currentScreen === 'rounds') app.appendChild(renderRounds());
+      if (currentScreen === 'roundDetail') app.appendChild(renderRoundDetail());
       if (currentScreen === 'expenses') app.appendChild(renderExpensesStub());
     }
 
@@ -232,6 +233,19 @@ function renderHeader() {
       <div style="display:flex; gap:8px;">
         <div class="stat-pill"><div class="num">${dueToday.length}</div><div class="label">stops</div></div>
         <div class="stat-pill"><div class="num" style="color:var(--rd-amber-text)">£${owed}</div><div class="label">due today</div></div>
+      </div>
+    `;
+  } else if (currentScreen === 'roundDetail') {
+    const round = Data.getRounds().find(r => r.id === activeRoundId);
+    const stats = round ? Data.getRoundStats(round.id) : { timesWorked: 0, owing: [] };
+    const totalOwed = stats.owing.reduce((sum, x) => sum + x.owed, 0);
+    header.innerHTML = `
+      <div>
+        <div class="title">${escapeHtml(round ? round.name : 'Round')}</div>
+      </div>
+      <div style="display:flex; gap:8px;">
+        <div class="stat-pill"><div class="num">${stats.timesWorked}</div><div class="label">times worked</div></div>
+        <div class="stat-pill"><div class="num" style="color:var(--rd-amber-text)">£${totalOwed}</div><div class="label">owed</div></div>
       </div>
     `;
   } else {
@@ -374,9 +388,74 @@ function renderRounds() {
     const item = document.createElement('div');
     item.className = 'list-item';
     item.innerHTML = `<div><div class="stop-name">${escapeHtml(r.name)}</div><div class="stop-addr">${count} customer${count === 1 ? '' : 's'}</div></div>`;
-    item.onclick = () => openRoundModal(r);
+    item.onclick = () => { activeRoundId = r.id; currentScreen = 'roundDetail'; render(); };
     wrap.appendChild(item);
   });
+  return wrap;
+}
+
+function renderRoundDetail() {
+  const wrap = document.createElement('div');
+  const round = Data.getRounds().find(r => r.id === activeRoundId);
+  if (!round) {
+    wrap.innerHTML = `<div class="empty-state">Round not found.</div>`;
+    return wrap;
+  }
+
+  const editBtn = document.createElement('button');
+  editBtn.className = 'secondary';
+  editBtn.style.cssText = 'width:100%; margin-bottom:16px;';
+  editBtn.textContent = 'Rename or delete this round';
+  editBtn.onclick = () => openRoundModal(round);
+  wrap.appendChild(editBtn);
+
+  const stats = Data.getRoundStats(round.id);
+
+  const owingHeading = document.createElement('div');
+  owingHeading.className = 'section-heading';
+  owingHeading.textContent = 'Currently owing';
+  wrap.appendChild(owingHeading);
+
+  if (!stats.owing.length) {
+    const none = document.createElement('div');
+    none.className = 'empty-state';
+    none.style.padding = '1.5rem';
+    none.textContent = 'Nobody in this round owes anything.';
+    wrap.appendChild(none);
+  } else {
+    stats.owing.forEach(({ customer, owed }) => {
+      const item = document.createElement('div');
+      item.className = 'list-item';
+      item.innerHTML = `
+        <div><div class="stop-name">${escapeHtml(customer.name)}</div><div class="stop-addr">${escapeHtml(customer.address)}</div></div>
+        <div class="stop-price" style="color:var(--rd-amber-text)">£${owed}</div>
+      `;
+      item.onclick = () => openCustomerModal(customer);
+      wrap.appendChild(item);
+    });
+  }
+
+  const datesHeading = document.createElement('div');
+  datesHeading.className = 'section-heading';
+  datesHeading.textContent = `Dates worked (${stats.timesWorked})`;
+  wrap.appendChild(datesHeading);
+
+  if (!stats.dates.length) {
+    const none = document.createElement('div');
+    none.className = 'empty-state';
+    none.style.padding = '1.5rem';
+    none.textContent = 'This round hasn\u2019t been worked yet.';
+    wrap.appendChild(none);
+  } else {
+    stats.dates.forEach(({ date, count }) => {
+      const item = document.createElement('div');
+      item.className = 'list-item';
+      const formatted = new Date(date).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+      item.innerHTML = `<div class="stop-name">${formatted}</div><div class="stop-addr">${count} stop${count === 1 ? '' : 's'}</div>`;
+      wrap.appendChild(item);
+    });
+  }
+
   return wrap;
 }
 
