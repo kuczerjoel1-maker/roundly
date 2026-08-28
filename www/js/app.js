@@ -35,6 +35,17 @@ function visitStatusFor(customer) {
   return visits[visits.length - 1].paid ? 'paid' : 'due';
 }
 
+function visitedToday(customer) {
+  return Data.getVisitsForCustomer(customer.id).some(v => v.date === todayISO());
+}
+
+// A customer belongs on today's round if they're due by frequency,
+// OR they've already been visited today — otherwise marking a visit
+// makes them vanish from the list mid-round, hiding unpaid stops.
+function belongsOnTodaysRound(customer) {
+  return isDueToday(customer) || visitedToday(customer);
+}
+
 function escapeHtml(str) {
   const div = document.createElement('div');
   div.textContent = str || '';
@@ -211,7 +222,7 @@ function renderHeader() {
       ? (Data.getRounds().find(r => r.id === activeRoundId)?.name || 'Round')
       : 'All customers';
     const customers = Data.getCustomersInRoundOrAll();
-    const dueToday = customers.filter(isDueToday);
+    const dueToday = customers.filter(belongsOnTodaysRound);
     const owed = dueToday.filter(c => visitStatusFor(c) === 'due').reduce((sum, c) => sum + c.price, 0);
     header.innerHTML = `
       <div>
@@ -271,7 +282,7 @@ function renderRoundPicker() {
 
 function renderRoute() {
   const wrap = document.createElement('div');
-  const customers = Data.getCustomersInRoundOrAll().filter(isDueToday);
+  const customers = Data.getCustomersInRoundOrAll().filter(belongsOnTodaysRound);
 
   if (!customers.length) {
     wrap.innerHTML = `<div class="empty-state">No stops due today in this round.</div>`;
