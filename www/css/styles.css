@@ -316,6 +316,33 @@ body.modal-open {
 }
 .field textarea { resize: vertical; min-height: 60px; }
 
+.address-suggestions {
+  position: relative;
+  margin-top: 4px;
+}
+.address-suggestion {
+  padding: 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-top: none;
+  font-size: 13.5px;
+  cursor: pointer;
+}
+.address-suggestion:active { background: var(--bg); }
+.address-suggestion:last-child { border-radius: 0 0 var(--radius-sm) var(--radius-sm); }
+.address-suggestion-empty {
+  padding: 10px 12px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.address-status {
+  font-size: 12px;
+  color: var(--rd-green-text);
+  font-weight: 600;
+  margin-top: 5px;
+  min-height: 16px;
+}
+
 .modal-actions { display: flex; gap: 8px; margin-top: 18px; }
 .modal-actions button { flex: 1; }
 
