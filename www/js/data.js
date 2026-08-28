@@ -2,7 +2,8 @@
 // Everything lives in localStorage as JSON. No server, no database.
 // Shape:
 //   customers: [{ id, name, address, lat, lng, phone, email, notes,
-//                 price, frequencyWeeks, status, order }]
+//                 price, frequencyWeeks, status, order, roundId }]
+//   rounds:    [{ id, name, order }]
 //   visits:    [{ id, customerId, date, priceCharged, paid, notes }]
 //   settings:  { lastBackup }
 
@@ -11,13 +12,15 @@ const STORE_KEY = 'roundly_data_v1';
 function loadStore() {
   const raw = localStorage.getItem(STORE_KEY);
   if (!raw) {
-    return { customers: [], visits: [], settings: {} };
+    return { customers: [], rounds: [], visits: [], settings: {} };
   }
   try {
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    if (!parsed.rounds) parsed.rounds = [];
+    return parsed;
   } catch (e) {
     console.error('Roundly: corrupt store, starting fresh', e);
-    return { customers: [], visits: [], settings: {} };
+    return { customers: [], rounds: [], visits: [], settings: {} };
   }
 }
 
@@ -37,6 +40,10 @@ const Data = {
       .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
   },
 
+  getCustomersInRound(roundId, includeArchived = false) {
+    return this.getCustomers(includeArchived).filter(c => c.roundId === roundId);
+  },
+
   addCustomer(customer) {
     const store = loadStore();
     const record = {
@@ -51,7 +58,8 @@ const Data = {
       price: Number(customer.price) || 0,
       frequencyWeeks: Number(customer.frequencyWeeks) || 4,
       status: 'active',
-      order: store.customers.length
+      order: store.customers.length,
+      roundId: customer.roundId || null
     };
     store.customers.push(record);
     saveStore(store);
@@ -80,6 +88,50 @@ const Data = {
     saveStore(store);
   },
 
+  deleteCustomer(id) {
+    const store = loadStore();
+    store.customers = store.customers.filter(c => c.id !== id);
+    store.visits = store.visits.filter(v => v.customerId !== id);
+    saveStore(store);
+  },
+
+  // --- Rounds ---
+  getRounds() {
+    const store = loadStore();
+    return store.rounds.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  },
+
+  addRound(name) {
+    const store = loadStore();
+    const record = { id: uid(), name: name.trim(), order: store.rounds.length };
+    store.rounds.push(record);
+    saveStore(store);
+    return record;
+  },
+
+  updateRound(id, updates) {
+    const store = loadStore();
+    const idx = store.rounds.findIndex(r => r.id === id);
+    if (idx === -1) return null;
+    store.rounds[idx] = { ...store.rounds[idx], ...updates };
+    saveStore(store);
+    return store.rounds[idx];
+  },
+
+  deleteRound(id) {
+    const store = loadStore();
+    store.rounds = store.rounds.filter(r => r.id !== id);
+    // Unassign customers rather than deleting them
+    store.customers.forEach(c => { if (c.roundId === id) c.roundId = null; });
+    saveStore(store);
+  },
+
+  countCustomersInRound(id) {
+    const store = loadStore();
+    return store.customers.filter(c => c.roundId === id && c.status !== 'archived').length;
+  },
+
+  // --- Visits ---
   addVisit(visit) {
     const store = loadStore();
     const record = {
@@ -122,12 +174,5 @@ const Data = {
   importBackup(json) {
     const parsed = JSON.parse(json);
     saveStore(parsed);
-  },
-
-  deleteCustomer(id) {
-    const store = loadStore();
-    store.customers = store.customers.filter(c => c.id !== id);
-    store.visits = store.visits.filter(v => v.customerId !== id);
-    saveStore(store);
   }
 };
