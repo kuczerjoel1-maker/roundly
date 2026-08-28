@@ -53,19 +53,31 @@ function closeModal(backdrop) {
 }
 
 // --- Geocoding (OpenStreetMap Nominatim, free, no key) ---
-async function geocodeAddress(address) {
-  if (!address) return null;
+function debounce(fn, delay) {
+  let timer;
+  return (...args) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn(...args), delay);
+  };
+}
+
+async function searchAddress(query) {
+  if (!query || query.trim().length < 4) return [];
   try {
-    const url = 'https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(address);
+    const url = 'https://nominatim.openstreetmap.org/search?format=json&limit=5&countrycodes=gb&q=' + encodeURIComponent(query);
     const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
-    if (!res.ok) return null;
+    if (!res.ok) return [];
     const results = await res.json();
-    if (!results.length) return null;
-    return { lat: parseFloat(results[0].lat), lng: parseFloat(results[0].lon) };
+    return results.map(r => ({ label: r.display_name, lat: parseFloat(r.lat), lng: parseFloat(r.lon) }));
   } catch (e) {
-    console.error('Geocoding failed', e);
-    return null;
+    console.error('Address search failed', e);
+    return [];
   }
+}
+
+async function geocodeAddress(address) {
+  const results = await searchAddress(address);
+  return results.length ? { lat: results[0].lat, lng: results[0].lng } : null;
 }
 
 // --- Distance (straight-line, in km) between two lat/lng points ---
@@ -372,8 +384,12 @@ function openCustomerModal(customer) {
   backdrop.innerHTML = `
     <div class="modal-sheet">
       <div class="field"><label>Name</label><input id="f-name" value="${customer ? escapeHtml(customer.name) : ''}"></div>
-      <div class="field"><label>Address</label><input id="f-address" value="${customer ? escapeHtml(customer.address) : ''}"></div>
-      ${isEdit && (customer.lat == null || customer.lng == null) ? `<div class="field"><button type="button" class="secondary" id="f-locate" style="width:100%;">Locate this address now</button></div>` : ''}
+      <div class="field" style="position:relative;">
+        <label>Address</label>
+        <input id="f-address" value="${customer ? escapeHtml(customer.address) : ''}" autocomplete="off" placeholder="Start typing to search…">
+        <div id="f-address-suggestions" class="address-suggestions"></div>
+        <div id="f-address-status" class="address-status">${customer && customer.lat != null ? '📍 Location saved' : ''}</div>
+      </div>
       <div class="field"><label>Phone</label><input id="f-phone" value="${customer ? escapeHtml(customer.phone) : ''}"></div>
       <div class="field"><label>Price (£)</label><input id="f-price" type="number" value="${customer ? customer.price : ''}"></div>
       <div class="field"><label>Frequency (weeks)</label><input id="f-freq" type="number" value="${customer ? customer.frequencyWeeks : 4}"></div>
@@ -401,6 +417,51 @@ function openCustomerModal(customer) {
   `;
   openModal(backdrop);
 
+  // Tracks the coordinates for whichever address is currently confirmed.
+  // Starts as the customer's existing coords (if editing); cleared whenever
+  // the address text is edited, and set again when a suggestion is picked.
+  let selectedCoords = (customer && customer.lat != null && customer.lng != null)
+    ? { lat: customer.lat, lng: customer.lng }
+    : null;
+  let lastConfirmedAddress = customer ? customer.address : null;
+
+  const addressInput = backdrop.querySelector('#f-address');
+  const suggestionsBox = backdrop.querySelector('#f-address-suggestions');
+  const statusBox = backdrop.querySelector('#f-address-status');
+
+  const runSearch = debounce(async () => {
+    const query = addressInput.value.trim();
+    if (query.length < 4) {
+      suggestionsBox.innerHTML = '';
+      return;
+    }
+    const results = await searchAddress(query);
+    if (!results.length) {
+      suggestionsBox.innerHTML = `<div class="address-suggestion-empty">No matches found</div>`;
+      return;
+    }
+    suggestionsBox.innerHTML = results.map((r, i) =>
+      `<div class="address-suggestion" data-idx="${i}">${escapeHtml(r.label)}</div>`
+    ).join('');
+    suggestionsBox.querySelectorAll('.address-suggestion').forEach((el, i) => {
+      el.onclick = () => {
+        addressInput.value = results[i].label;
+        selectedCoords = { lat: results[i].lat, lng: results[i].lng };
+        lastConfirmedAddress = results[i].label;
+        suggestionsBox.innerHTML = '';
+        statusBox.textContent = '📍 Location saved';
+      };
+    });
+  }, 400);
+
+  addressInput.addEventListener('input', () => {
+    if (addressInput.value.trim() !== lastConfirmedAddress) {
+      selectedCoords = null;
+      statusBox.textContent = '';
+    }
+    runSearch();
+  });
+
   if (isEdit) {
     backdrop.querySelector('#f-delete').onclick = () => {
       if (confirm(`Delete ${customer.name}? This can't be undone.`)) {
@@ -409,34 +470,16 @@ function openCustomerModal(customer) {
         render();
       }
     };
-    const locateBtn = backdrop.querySelector('#f-locate');
-    if (locateBtn) {
-      locateBtn.onclick = async () => {
-        locateBtn.textContent = 'Locating…';
-        locateBtn.disabled = true;
-        const address = backdrop.querySelector('#f-address').value.trim();
-        const coords = await geocodeAddress(address);
-        if (coords) {
-          Data.updateCustomer(customer.id, coords);
-          locateBtn.textContent = 'Located ✓';
-        } else {
-          locateBtn.textContent = 'Could not locate — check address';
-          locateBtn.disabled = false;
-        }
-      };
-    }
   }
 
   backdrop.querySelector('#f-cancel').onclick = () => closeModal(backdrop);
-  backdrop.querySelector('#f-save').onclick = async () => {
+  backdrop.querySelector('#f-save').onclick = () => {
     const name = backdrop.querySelector('#f-name').value.trim();
     const address = backdrop.querySelector('#f-address').value.trim();
     if (!name || !address) {
       alert('Enter a name and address first.');
       return;
     }
-    const saveBtn = backdrop.querySelector('#f-save');
-    const addressChanged = !customer || customer.address !== address;
     const payload = {
       name,
       address,
@@ -444,26 +487,12 @@ function openCustomerModal(customer) {
       price: backdrop.querySelector('#f-price').value,
       frequencyWeeks: backdrop.querySelector('#f-freq').value,
       roundId: backdrop.querySelector('#f-round').value || null,
-      notes: backdrop.querySelector('#f-notes').value.trim()
+      notes: backdrop.querySelector('#f-notes').value.trim(),
+      lat: selectedCoords ? selectedCoords.lat : null,
+      lng: selectedCoords ? selectedCoords.lng : null
     };
     if (isEdit) {
       payload.status = backdrop.querySelector('#f-status').value;
-    }
-
-    if (addressChanged) {
-      saveBtn.textContent = 'Locating…';
-      saveBtn.disabled = true;
-      const coords = await geocodeAddress(address);
-      if (coords) {
-        payload.lat = coords.lat;
-        payload.lng = coords.lng;
-      } else {
-        payload.lat = null;
-        payload.lng = null;
-      }
-    }
-
-    if (isEdit) {
       Data.updateCustomer(customer.id, payload);
     } else {
       Data.addCustomer(payload);
