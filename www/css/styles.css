@@ -194,6 +194,16 @@ body {
 .status-archived { background: var(--rd-red-light); color: var(--rd-red); }
 
 /* ---------- Lists (customers / rounds) ---------- */
+.section-heading {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--text-muted);
+  margin: 18px 0 8px;
+}
+.section-heading:first-of-type { margin-top: 0; }
+
 .list-item {
   background: var(--surface);
   border: 1px solid var(--border);
