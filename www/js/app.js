@@ -88,15 +88,19 @@ function renderHome() {
   grid.className = 'home-grid';
 
   const items = [
-    { key: 'roundPicker', label: "Today's Round", desc: 'Pick a round & see who\u2019s due' },
-    { key: 'customers', label: 'Customers', desc: 'Add, edit, archive' },
-    { key: 'rounds', label: 'Rounds', desc: 'Name & manage your rounds' },
-    { key: 'expenses', label: 'Expenses', desc: 'Coming in v2' }
+    { key: 'roundPicker', label: "Today's Round", desc: 'Pick a round & see who\u2019s due',
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="19" r="2"/><circle cx="18" cy="5" r="2"/><path d="M6 17V9a4 4 0 0 1 4-4h4"/></svg>' },
+    { key: 'customers', label: 'Customers', desc: 'Add, edit, archive',
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>' },
+    { key: 'rounds', label: 'Rounds', desc: 'Name & manage your rounds',
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>' },
+    { key: 'expenses', label: 'Expenses', desc: 'Coming in v2',
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>' }
   ];
   items.forEach(item => {
     const card = document.createElement('button');
     card.className = 'home-card';
-    card.innerHTML = `<div class="home-card-label">${item.label}</div><div class="home-card-desc">${item.desc}</div>`;
+    card.innerHTML = `<div class="home-card-icon">${item.icon}</div><div><div class="home-card-label">${item.label}</div><div class="home-card-desc">${item.desc}</div></div>`;
     card.onclick = () => {
       currentScreen = item.key;
       if (item.key === 'route') activeRoundId = null;
