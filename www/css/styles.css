@@ -144,6 +144,28 @@ body {
 .stat-pill .label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px; margin-top: 1px; }
 
 /* ---------- Route list ---------- */
+.subtabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+.subtab {
+  flex: 1;
+  padding: 8px 4px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  cursor: pointer;
+}
+.subtab.active {
+  background: var(--rd-blue-light);
+  color: var(--rd-blue);
+  border-color: var(--rd-blue-light);
+}
+
 .route-actions {
   display: flex;
   gap: 8px;
