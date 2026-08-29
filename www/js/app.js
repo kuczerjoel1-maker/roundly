@@ -218,7 +218,9 @@ function renderHome() {
   const wrap = document.createElement('div');
   wrap.innerHTML = `
     <div class="home-header">
+      <img src="assets/logo.png" alt="Roundly" class="home-logo">
       <div class="home-title">roundly</div>
+      <div class="home-tagline">Your Route. Your Customers. Your Business.</div>
       <div class="home-sub">${new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}</div>
     </div>
   `;
