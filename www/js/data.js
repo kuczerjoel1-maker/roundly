@@ -54,6 +54,7 @@ const Data = {
     const store = loadStore();
     return store.customers
       .filter(c => includeArchived || c.status !== 'archived')
+      .map(c => ({ ...c, price: Number(c.price) || 0, frequencyWeeks: Number(c.frequencyWeeks) || 0 }))
       .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
   },
 
@@ -88,7 +89,10 @@ const Data = {
     const store = loadStore();
     const idx = store.customers.findIndex(c => c.id === id);
     if (idx === -1) return null;
-    store.customers[idx] = { ...store.customers[idx], ...updates };
+    const clean = { ...updates };
+    if ('price' in clean) clean.price = Number(clean.price) || 0;
+    if ('frequencyWeeks' in clean) clean.frequencyWeeks = Number(clean.frequencyWeeks) || 0;
+    store.customers[idx] = { ...store.customers[idx], ...clean };
     saveStore(store);
     return store.customers[idx];
   },
