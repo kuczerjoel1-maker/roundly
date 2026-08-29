@@ -190,6 +190,50 @@ body {
   border-color: var(--rd-blue-light);
 }
 
+/* ---------- Round checkbox table (Today's Round) ---------- */
+.round-table {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.round-table-row {
+  display: grid;
+  grid-template-columns: 26px 1fr 42px 34px 34px 48px 26px;
+  gap: 6px;
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+  box-shadow: var(--shadow-sm);
+}
+.round-table-header {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0 10px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: var(--text-muted);
+  text-align: center;
+}
+.round-table-header > div:nth-child(2) { text-align: left; }
+.rt-badge {
+  width: 24px; height: 24px; border-radius: 50%;
+  background: var(--surface); border: 2px solid var(--rd-blue); color: var(--rd-blue);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700;
+}
+.rt-info { min-width: 0; cursor: pointer; }
+.rt-info .stop-name { font-size: 13px; }
+.rt-info .stop-addr { font-size: 11px; }
+.rt-date { font-size: 11px; color: var(--text-secondary); text-align: center; }
+.rt-check { display: flex; justify-content: center; }
+.rt-check input[type="checkbox"] { width: 19px; height: 19px; accent-color: var(--rd-blue); }
+.rt-owing { font-size: 12px; font-weight: 700; color: var(--rd-amber-text); text-align: center; }
+
 .route-actions {
   display: flex;
   gap: 8px;
