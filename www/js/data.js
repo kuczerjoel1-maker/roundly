@@ -73,7 +73,8 @@ const Data = {
       email: customer.email || '',
       notes: customer.notes || '',
       price: Number(customer.price) || 0,
-      frequencyWeeks: Number(customer.frequencyWeeks) || 4,
+      frequencyWeeks: customer.frequencyWeeks !== undefined && customer.frequencyWeeks !== '' ? Number(customer.frequencyWeeks) : 4,
+      oneOff: Boolean(customer.oneOff),
       status: 'active',
       order: store.customers.length,
       roundId: customer.roundId || null
@@ -102,6 +103,20 @@ const Data = {
       const c = store.customers.find(x => x.id === id);
       if (c) c.order = i;
     });
+    saveStore(store);
+  },
+
+  // Swaps two customers' order values directly — used for manual
+  // up/down nudges within a filtered route list, without disturbing
+  // the order of everyone else not currently shown.
+  swapOrder(idA, idB) {
+    const store = loadStore();
+    const a = store.customers.find(c => c.id === idA);
+    const b = store.customers.find(c => c.id === idB);
+    if (!a || !b) return;
+    const tmp = a.order;
+    a.order = b.order;
+    b.order = tmp;
     saveStore(store);
   },
 
@@ -232,6 +247,27 @@ const Data = {
     return store.settings.lastBackup || null;
   },
 
+  markShared() {
+    const store = loadStore();
+    store.settings.lastShared = new Date().toISOString();
+    saveStore(store);
+  },
+
+  getLastSharedTime() {
+    const store = loadStore();
+    return store.settings.lastShared || null;
+  },
+
+  // True if never shared, or it's been 14+ days — used for a gentle home-screen nudge
+  needsShareReminder() {
+    const store = loadStore();
+    if (!store.settings.backupPassword) return false; // don't nag before they've even set one up
+    if (!store.settings.lastShared) return true;
+    const last = new Date(store.settings.lastShared);
+    const days = (Date.now() - last.getTime()) / (1000 * 60 * 60 * 24);
+    return days >= 14;
+  },
+
   importBackup(json) {
     const parsed = JSON.parse(json);
     saveStore(parsed);
@@ -268,6 +304,15 @@ const Data = {
     saveStore(store);
   },
 
+  updateMileageTrip(id, updates) {
+    const store = loadStore();
+    const idx = store.mileage.findIndex(m => m.id === id);
+    if (idx === -1) return null;
+    store.mileage[idx] = { ...store.mileage[idx], ...updates };
+    saveStore(store);
+    return store.mileage[idx];
+  },
+
   // --- Expenses ---
   getExpenses() {
     const store = loadStore();
@@ -292,6 +337,15 @@ const Data = {
     const store = loadStore();
     store.expenses = store.expenses.filter(e => e.id !== id);
     saveStore(store);
+  },
+
+  updateExpense(id, updates) {
+    const store = loadStore();
+    const idx = store.expenses.findIndex(e => e.id === id);
+    if (idx === -1) return null;
+    store.expenses[idx] = { ...store.expenses[idx], ...updates };
+    saveStore(store);
+    return store.expenses[idx];
   },
 
   // Every tax year that has any mileage or expense entry, plus the current one, newest first

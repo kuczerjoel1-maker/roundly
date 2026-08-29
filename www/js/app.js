@@ -25,6 +25,10 @@ function lastVisitDate(customerId) {
 
 function isDueToday(customer) {
   const last = lastVisitDate(customer.id);
+  if (customer.oneOff) {
+    // A one-off job is due until its single visit is logged, then never again.
+    return !last;
+  }
   if (!last) return true;
   const nextDue = new Date(last);
   nextDue.setDate(nextDue.getDate() + customer.frequencyWeeks * 7);
@@ -245,6 +249,21 @@ function renderHome() {
     grid.appendChild(card);
   });
   wrap.appendChild(grid);
+
+  if (Data.needsShareReminder()) {
+    const banner = document.createElement('button');
+    banner.className = 'reminder-banner';
+    const lastShared = Data.getLastSharedTime();
+    banner.innerHTML = `
+      <div>
+        <div class="reminder-title">☁️ Back up to the cloud</div>
+        <div class="reminder-sub">${lastShared ? 'Last shared ' + new Date(lastShared).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : 'Never shared yet'} — tap to share a backup</div>
+      </div>
+    `;
+    banner.onclick = () => { currentScreen = 'backup'; render(); };
+    wrap.appendChild(banner);
+  }
+
   return wrap;
 }
 
@@ -368,14 +387,30 @@ function renderRoute() {
         <div>
           <div class="stop-name">${escapeHtml(c.name)}</div>
           <div class="stop-addr">${escapeHtml(c.address)}</div>
+          ${c.notes ? `<div class="stop-notes">📝 ${escapeHtml(c.notes)}</div>` : ''}
         </div>
         <div>
           <div class="stop-price">£${c.price}</div>
           <div class="status-pill status-${status}">${status.charAt(0).toUpperCase() + status.slice(1)}</div>
         </div>
       </div>
+      <div class="stop-reorder">
+        <button class="reorder-btn" data-dir="up" ${i === 0 ? 'disabled' : ''} aria-label="Move up">▲</button>
+        <button class="reorder-btn" data-dir="down" ${i === customers.length - 1 ? 'disabled' : ''} aria-label="Move down">▼</button>
+      </div>
     `;
     row.querySelector('.stop-card').onclick = () => openVisitModal(c);
+    row.querySelectorAll('.reorder-btn').forEach(btn => {
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        const dir = btn.dataset.dir;
+        const neighbor = dir === 'up' ? customers[i - 1] : customers[i + 1];
+        if (neighbor) {
+          Data.swapOrder(c.id, neighbor.id);
+          render();
+        }
+      };
+    });
     list.appendChild(row);
   });
   wrap.appendChild(list);
@@ -384,28 +419,55 @@ function renderRoute() {
 
 function renderCustomers() {
   const wrap = document.createElement('div');
-  const customers = Data.getCustomers(true);
+  const allCustomers = Data.getCustomers(true);
 
-  if (!customers.length) {
+  if (!allCustomers.length) {
     wrap.innerHTML = `<div class="empty-state">No customers yet.<br>Tap + to add your first one.</div>`;
     return wrap;
   }
 
+  const searchField = document.createElement('div');
+  searchField.className = 'field';
+  searchField.innerHTML = `<input id="customer-search" placeholder="Search by name or address…" autocomplete="off">`;
+  wrap.appendChild(searchField);
+
+  const listContainer = document.createElement('div');
+  wrap.appendChild(listContainer);
+
   const rounds = Data.getRounds();
-  customers.forEach(c => {
-    const roundName = c.roundId ? (rounds.find(r => r.id === c.roundId)?.name) : null;
-    const item = document.createElement('div');
-    item.className = 'list-item';
-    item.innerHTML = `
-      <div>
-        <div class="stop-name">${escapeHtml(c.name)}</div>
-        <div class="stop-addr">${escapeHtml(c.address)} &middot; every ${c.frequencyWeeks}wk &middot; £${c.price}${roundName ? ' &middot; ' + escapeHtml(roundName) : ''}</div>
-      </div>
-      <div class="status-pill status-${c.status === 'archived' ? 'paused' : c.status === 'paused' ? 'paused' : 'paid'}">${c.status}</div>
-    `;
-    item.onclick = () => openCustomerModal(c);
-    wrap.appendChild(item);
-  });
+
+  function updateList() {
+    const query = searchField.querySelector('#customer-search').value.trim().toLowerCase();
+    const customers = query
+      ? allCustomers.filter(c => c.name.toLowerCase().includes(query) || c.address.toLowerCase().includes(query))
+      : allCustomers;
+
+    listContainer.innerHTML = '';
+    if (!customers.length) {
+      listContainer.innerHTML = `<div class="empty-state">No customers match "${escapeHtml(query)}".</div>`;
+      return;
+    }
+    customers.forEach(c => {
+      const roundName = c.roundId ? (rounds.find(r => r.id === c.roundId)?.name) : null;
+      const freqLabel = c.oneOff
+        ? (Data.getVisitsForCustomer(c.id).length ? 'One-off · done' : 'One-off · not yet done')
+        : `every ${c.frequencyWeeks}wk`;
+      const item = document.createElement('div');
+      item.className = 'list-item';
+      item.innerHTML = `
+        <div>
+          <div class="stop-name">${escapeHtml(c.name)}</div>
+          <div class="stop-addr">${escapeHtml(c.address)} &middot; ${freqLabel} &middot; £${c.price}${roundName ? ' &middot; ' + escapeHtml(roundName) : ''}</div>
+        </div>
+        <div class="status-pill status-${c.status === 'archived' ? 'paused' : c.status === 'paused' ? 'paused' : 'paid'}">${c.status}</div>
+      `;
+      item.onclick = () => openCustomerModal(c);
+      listContainer.appendChild(item);
+    });
+  }
+
+  searchField.querySelector('#customer-search').addEventListener('input', updateList);
+  updateList();
   return wrap;
 }
 
@@ -568,12 +630,7 @@ function renderMileageSection() {
       </div>
       <div class="stop-price">£${trip.value.toFixed(2)}</div>
     `;
-    item.onclick = () => {
-      if (confirm('Delete this mileage entry?')) {
-        Data.deleteMileageTrip(trip.id);
-        render();
-      }
-    };
+    item.onclick = () => openMileageModal(trip);
     wrap.appendChild(item);
   });
   return wrap;
@@ -605,12 +662,7 @@ function renderExpensesSection() {
       </div>
       <div class="stop-price">£${exp.amount.toFixed(2)}</div>
     `;
-    item.onclick = () => {
-      if (confirm('Delete this expense?')) {
-        Data.deleteExpense(exp.id);
-        render();
-      }
-    };
+    item.onclick = () => openExpenseModal(exp);
     wrap.appendChild(item);
   });
   return wrap;
@@ -679,6 +731,7 @@ function renderBackupScreen() {
     shareBtn.disabled = true;
     await shareEncryptedBackup(password);
     Data.markBackupDone();
+    Data.markShared();
     shareBtn.textContent = 'Share backup (Drive, OneDrive, etc.)';
     shareBtn.disabled = false;
     render();
@@ -787,7 +840,12 @@ function openCustomerModal(customer) {
       </div>
       <div class="field"><label>Phone</label><input id="f-phone" value="${customer ? escapeHtml(customer.phone) : ''}"></div>
       <div class="field"><label>Price (£)</label><input id="f-price" type="number" value="${customer ? customer.price : ''}"></div>
-      <div class="field"><label>Frequency (weeks)</label><input id="f-freq" type="number" value="${customer ? customer.frequencyWeeks : 4}"></div>
+      <div class="field">
+        <label><input id="f-oneoff" type="checkbox" ${customer && customer.oneOff ? 'checked' : ''} style="width:auto; margin-right:6px;">One-off job (not recurring)</label>
+      </div>
+      <div class="field" id="f-freq-field" style="${customer && customer.oneOff ? 'display:none;' : ''}">
+        <label>Frequency (weeks)</label><input id="f-freq" type="number" value="${customer ? customer.frequencyWeeks : 4}">
+      </div>
       <div class="field"><label>Round</label>
         <select id="f-round">
           <option value="">Unassigned</option>
@@ -867,6 +925,10 @@ function openCustomerModal(customer) {
     };
   }
 
+  backdrop.querySelector('#f-oneoff').onchange = (e) => {
+    backdrop.querySelector('#f-freq-field').style.display = e.target.checked ? 'none' : 'block';
+  };
+
   backdrop.querySelector('#f-cancel').onclick = () => closeModal(backdrop);
   backdrop.querySelector('#f-save').onclick = () => {
     const name = backdrop.querySelector('#f-name').value.trim();
@@ -875,12 +937,14 @@ function openCustomerModal(customer) {
       alert('Enter a name and address first.');
       return;
     }
+    const oneOff = backdrop.querySelector('#f-oneoff').checked;
     const payload = {
       name,
       address,
       phone: backdrop.querySelector('#f-phone').value.trim(),
       price: backdrop.querySelector('#f-price').value,
-      frequencyWeeks: backdrop.querySelector('#f-freq').value,
+      oneOff,
+      frequencyWeeks: oneOff ? 0 : backdrop.querySelector('#f-freq').value,
       roundId: backdrop.querySelector('#f-round').value || null,
       notes: backdrop.querySelector('#f-notes').value.trim(),
       lat: selectedCoords ? selectedCoords.lat : null,
@@ -1017,17 +1081,18 @@ function showMapModal(customers) {
 }
 
 // --- Mileage trip modal ---
-function openMileageModal() {
+function openMileageModal(trip) {
+  const isEdit = Boolean(trip);
   const rounds = Data.getRounds();
   const backdrop = document.createElement('div');
   backdrop.className = 'modal-backdrop';
   backdrop.innerHTML = `
     <div class="modal-sheet">
-      <div class="field"><label>Date</label><input id="m-date" type="date" value="${todayISO()}"></div>
+      <div class="field"><label>Date</label><input id="m-date" type="date" value="${isEdit ? trip.date : todayISO()}"></div>
       <div class="field"><label>Round (optional)</label>
         <select id="m-round">
           <option value="">None</option>
-          ${rounds.map(r => `<option value="${r.id}">${escapeHtml(r.name)}</option>`).join('')}
+          ${rounds.map(r => `<option value="${r.id}" ${isEdit && trip.roundId === r.id ? 'selected' : ''}>${escapeHtml(r.name)}</option>`).join('')}
         </select>
       </div>
       <button type="button" class="secondary" id="m-fill-round" style="width:100%; margin-bottom:14px; display:none;">Fill stops from this round's order</button>
@@ -1036,12 +1101,13 @@ function openMileageModal() {
         <div id="m-stops"></div>
         <button type="button" class="secondary" id="m-add-stop" style="width:100%; margin-top:6px;">+ Add stop</button>
       </div>
-      <div class="field"><label>Purpose</label><input id="m-purpose" placeholder="e.g. Northside round"></div>
-      <div class="field"><label>Miles (whole trip)</label><input id="m-miles" type="number" step="0.1"></div>
+      <div class="field"><label>Purpose</label><input id="m-purpose" value="${isEdit ? escapeHtml(trip.purpose) : ''}" placeholder="e.g. Northside round"></div>
+      <div class="field"><label>Miles (whole trip)</label><input id="m-miles" type="number" step="0.1" value="${isEdit ? trip.miles : ''}"></div>
       <div class="modal-actions">
         <button class="secondary" id="m-cancel">Cancel</button>
-        <button class="primary" id="m-save">Add trip</button>
+        <button class="primary" id="m-save">${isEdit ? 'Save changes' : 'Add trip'}</button>
       </div>
+      ${isEdit ? `<button class="secondary" id="m-delete" style="width:100%; margin-top:8px; color:#A32D2D; border-color:#F09595;">Delete trip</button>` : ''}
     </div>
   `;
   openModal(backdrop);
@@ -1059,13 +1125,18 @@ function openMileageModal() {
     };
     stopsContainer.appendChild(row);
   }
-  addStopRow(); // start with two blank stops (e.g. Home → first job)
-  addStopRow();
+  if (isEdit && trip.stops.length) {
+    trip.stops.forEach(s => addStopRow(s));
+  } else {
+    addStopRow(); // start with two blank stops (e.g. Home → first job)
+    addStopRow();
+  }
 
   backdrop.querySelector('#m-add-stop').onclick = () => addStopRow();
 
   const roundSelect = backdrop.querySelector('#m-round');
   const fillBtn = backdrop.querySelector('#m-fill-round');
+  if (isEdit && trip.roundId) fillBtn.style.display = 'block';
   roundSelect.onchange = () => {
     const round = rounds.find(r => r.id === roundSelect.value);
     const purposeField = backdrop.querySelector('#m-purpose');
@@ -1088,6 +1159,16 @@ function openMileageModal() {
     customers.forEach(c => addStopRow(c.address));
   };
 
+  if (isEdit) {
+    backdrop.querySelector('#m-delete').onclick = () => {
+      if (confirm('Delete this mileage entry?')) {
+        Data.deleteMileageTrip(trip.id);
+        closeModal(backdrop);
+        render();
+      }
+    };
+  }
+
   backdrop.querySelector('#m-cancel').onclick = () => closeModal(backdrop);
   backdrop.querySelector('#m-save').onclick = () => {
     const miles = parseFloat(backdrop.querySelector('#m-miles').value);
@@ -1102,40 +1183,58 @@ function openMileageModal() {
       alert('Enter at least a start and end stop.');
       return;
     }
-    Data.addMileageTrip({
+    const payload = {
       date: backdrop.querySelector('#m-date').value || todayISO(),
       stops,
       purpose: backdrop.querySelector('#m-purpose').value.trim(),
       miles,
       roundId: roundSelect.value || null
-    });
+    };
+    if (isEdit) {
+      Data.updateMileageTrip(trip.id, payload);
+    } else {
+      Data.addMileageTrip(payload);
+    }
     closeModal(backdrop);
     render();
   };
 }
 
 // --- Expense modal ---
-function openExpenseModal() {
+function openExpenseModal(expense) {
+  const isEdit = Boolean(expense);
   const categories = ['Fuel', 'Equipment', 'Insurance', 'Phone', 'Other'];
   const backdrop = document.createElement('div');
   backdrop.className = 'modal-backdrop';
   backdrop.innerHTML = `
     <div class="modal-sheet">
-      <div class="field"><label>Date</label><input id="e-date" type="date" value="${todayISO()}"></div>
+      <div class="field"><label>Date</label><input id="e-date" type="date" value="${isEdit ? expense.date : todayISO()}"></div>
       <div class="field"><label>Category</label>
         <select id="e-category">
-          ${categories.map(c => `<option value="${c}">${c}</option>`).join('')}
+          ${categories.map(c => `<option value="${c}" ${isEdit && expense.category === c ? 'selected' : ''}>${c}</option>`).join('')}
         </select>
       </div>
-      <div class="field"><label>Description</label><input id="e-description" placeholder="e.g. new squeegee"></div>
-      <div class="field"><label>Amount (£)</label><input id="e-amount" type="number" step="0.01"></div>
+      <div class="field"><label>Description</label><input id="e-description" value="${isEdit ? escapeHtml(expense.description) : ''}" placeholder="e.g. new squeegee"></div>
+      <div class="field"><label>Amount (£)</label><input id="e-amount" type="number" step="0.01" value="${isEdit ? expense.amount : ''}"></div>
       <div class="modal-actions">
         <button class="secondary" id="e-cancel">Cancel</button>
-        <button class="primary" id="e-save">Add expense</button>
+        <button class="primary" id="e-save">${isEdit ? 'Save changes' : 'Add expense'}</button>
       </div>
+      ${isEdit ? `<button class="secondary" id="e-delete" style="width:100%; margin-top:8px; color:#A32D2D; border-color:#F09595;">Delete expense</button>` : ''}
     </div>
   `;
   openModal(backdrop);
+
+  if (isEdit) {
+    backdrop.querySelector('#e-delete').onclick = () => {
+      if (confirm('Delete this expense?')) {
+        Data.deleteExpense(expense.id);
+        closeModal(backdrop);
+        render();
+      }
+    };
+  }
+
   backdrop.querySelector('#e-cancel').onclick = () => closeModal(backdrop);
   backdrop.querySelector('#e-save').onclick = () => {
     const amount = parseFloat(backdrop.querySelector('#e-amount').value);
@@ -1143,12 +1242,17 @@ function openExpenseModal() {
       alert('Enter an amount first.');
       return;
     }
-    Data.addExpense({
+    const payload = {
       date: backdrop.querySelector('#e-date').value || todayISO(),
       category: backdrop.querySelector('#e-category').value,
       description: backdrop.querySelector('#e-description').value.trim(),
       amount
-    });
+    };
+    if (isEdit) {
+      Data.updateExpense(expense.id, payload);
+    } else {
+      Data.addExpense(payload);
+    }
     closeModal(backdrop);
     render();
   };
