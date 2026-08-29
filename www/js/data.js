@@ -196,15 +196,16 @@ const Data = {
     return store.visits.filter(v => v.customerId === customerId);
   },
 
-  // Weekly local backup: exports the whole store as a JSON blob.
-  // Called on app open if more than 7 days have passed since last backup.
-  // Overwrites the single backup file each time rather than accumulating.
-  exportBackup() {
+  // Returns the whole store as a plain JSON string, for the caller to encrypt.
+  getBackupJSON() {
+    const store = loadStore();
+    return JSON.stringify(store, null, 2);
+  },
+
+  markBackupDone() {
     const store = loadStore();
     store.settings.lastBackup = new Date().toISOString();
     saveStore(store);
-    const blob = new Blob([JSON.stringify(store, null, 2)], { type: 'application/json' });
-    return blob;
   },
 
   needsBackup() {
@@ -213,6 +214,22 @@ const Data = {
     const last = new Date(store.settings.lastBackup);
     const days = (Date.now() - last.getTime()) / (1000 * 60 * 60 * 24);
     return days >= 7;
+  },
+
+  getBackupPassword() {
+    const store = loadStore();
+    return store.settings.backupPassword || null;
+  },
+
+  setBackupPassword(password) {
+    const store = loadStore();
+    store.settings.backupPassword = password;
+    saveStore(store);
+  },
+
+  getLastBackupTime() {
+    const store = loadStore();
+    return store.settings.lastBackup || null;
   },
 
   importBackup(json) {

@@ -1,5 +1,5 @@
 // Roundly app shell
-let currentScreen = 'home'; // home | roundPicker | route | customers | rounds | roundDetail | expenses
+let currentScreen = 'home'; // home | roundPicker | route | customers | rounds | roundDetail | expenses | backup
 let activeRoundId = null;   // null = "all customers" round
 let expensesSubTab = 'mileage'; // mileage | expenses
 let selectedTaxYear = null; // set on first render of Expenses screen
@@ -163,6 +163,7 @@ function render() {
       if (currentScreen === 'rounds') app.appendChild(renderRounds());
       if (currentScreen === 'roundDetail') app.appendChild(renderRoundDetail());
       if (currentScreen === 'expenses') app.appendChild(renderExpensesStub());
+      if (currentScreen === 'backup') app.appendChild(renderBackupScreen());
     }
 
     if (currentScreen === 'route' || currentScreen === 'customers') {
@@ -228,7 +229,9 @@ function renderHome() {
     { key: 'rounds', label: 'Rounds', desc: 'Name & manage your rounds',
       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>' },
     { key: 'expenses', label: 'Expenses', desc: 'Mileage & spending, tax-year ready',
-      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>' }
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>' },
+    { key: 'backup', label: 'Backup', desc: 'Encrypted backup & restore',
+      icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><circle cx="12" cy="16" r="1"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>' }
   ];
   items.forEach(item => {
     const card = document.createElement('button');
@@ -284,7 +287,8 @@ function renderHeader() {
       roundPicker: 'Choose a round',
       customers: 'Customers',
       rounds: 'Manage rounds',
-      expenses: 'Expenses'
+      expenses: 'Expenses',
+      backup: 'Backup & restore'
     };
     header.innerHTML = `<div><div class="title">${titles[currentScreen] || ''}</div></div>`;
   }
@@ -610,6 +614,140 @@ function renderExpensesSection() {
     wrap.appendChild(item);
   });
   return wrap;
+}
+
+function renderBackupScreen() {
+  const wrap = document.createElement('div');
+  const hasPassword = Boolean(Data.getBackupPassword());
+  const lastBackup = Data.getLastBackupTime();
+
+  const statusCard = document.createElement('div');
+  statusCard.className = 'list-item';
+  statusCard.style.cssText = 'cursor:default;';
+  statusCard.innerHTML = `
+    <div>
+      <div class="stop-name">${hasPassword ? '🔒 Backup password is set' : '⚠️ No backup password set'}</div>
+      <div class="stop-addr">${lastBackup ? 'Last backup: ' + new Date(lastBackup).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'No backup taken yet'}</div>
+    </div>
+  `;
+  wrap.appendChild(statusCard);
+
+  const passHeading = document.createElement('div');
+  passHeading.className = 'section-heading';
+  passHeading.textContent = hasPassword ? 'Change backup password' : 'Set a backup password';
+  wrap.appendChild(passHeading);
+
+  const passField = document.createElement('div');
+  passField.innerHTML = `
+    <div class="field"><label>New password</label><input id="bk-pass1" type="password"></div>
+    <div class="field"><label>Confirm password</label><input id="bk-pass2" type="password"></div>
+    <button class="primary" id="bk-save-pass" style="width:100%; margin-bottom:20px;">Save password</button>
+  `;
+  wrap.appendChild(passField);
+  passField.querySelector('#bk-save-pass').onclick = () => {
+    const p1 = passField.querySelector('#bk-pass1').value;
+    const p2 = passField.querySelector('#bk-pass2').value;
+    if (!p1 || p1.length < 6) {
+      alert('Use a password of at least 6 characters.');
+      return;
+    }
+    if (p1 !== p2) {
+      alert('Passwords don\u2019t match.');
+      return;
+    }
+    Data.setBackupPassword(p1);
+    alert('Backup password saved. Weekly backups will now be encrypted with it automatically.');
+    render();
+  };
+
+  const actionsHeading = document.createElement('div');
+  actionsHeading.className = 'section-heading';
+  actionsHeading.textContent = 'Manual actions';
+  wrap.appendChild(actionsHeading);
+
+  const downloadBtn = document.createElement('button');
+  downloadBtn.className = 'secondary';
+  downloadBtn.style.cssText = 'width:100%; margin-bottom:10px;';
+  downloadBtn.textContent = 'Download backup now';
+  downloadBtn.onclick = async () => {
+    const password = Data.getBackupPassword();
+    if (!password) {
+      alert('Set a backup password above first.');
+      return;
+    }
+    downloadBtn.textContent = 'Encrypting…';
+    downloadBtn.disabled = true;
+    await downloadEncryptedBackup(password, `roundly-backup-${todayISO()}.json`);
+    Data.markBackupDone();
+    downloadBtn.textContent = 'Download backup now';
+    downloadBtn.disabled = false;
+    render();
+  };
+  wrap.appendChild(downloadBtn);
+
+  const restoreBtn = document.createElement('button');
+  restoreBtn.className = 'secondary';
+  restoreBtn.style.cssText = 'width:100%;';
+  restoreBtn.textContent = 'Restore from backup file';
+  wrap.appendChild(restoreBtn);
+
+  const fileInput = document.createElement('input');
+  fileInput.type = 'file';
+  fileInput.accept = '.json';
+  fileInput.style.display = 'none';
+  wrap.appendChild(fileInput);
+
+  restoreBtn.onclick = () => fileInput.click();
+  fileInput.onchange = () => {
+    const file = fileInput.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => openRestoreModal(reader.result);
+    reader.readAsText(file);
+    fileInput.value = '';
+  };
+
+  return wrap;
+}
+
+function openRestoreModal(encryptedContent) {
+  const backdrop = document.createElement('div');
+  backdrop.className = 'modal-backdrop';
+  backdrop.innerHTML = `
+    <div class="modal-sheet">
+      <div style="font-weight:700; margin-bottom:6px;">Restore backup</div>
+      <div style="font-size:13px; color:var(--text-secondary); margin-bottom:14px;">This will replace everything currently in the app with what's in this backup file. This can't be undone.</div>
+      <div class="field"><label>Backup password</label><input id="rs-pass" type="password"></div>
+      <div class="modal-actions">
+        <button class="secondary" id="rs-cancel">Cancel</button>
+        <button class="primary" id="rs-confirm">Restore</button>
+      </div>
+    </div>
+  `;
+  openModal(backdrop);
+  backdrop.querySelector('#rs-cancel').onclick = () => closeModal(backdrop);
+  backdrop.querySelector('#rs-confirm').onclick = async () => {
+    const password = backdrop.querySelector('#rs-pass').value;
+    if (!password) {
+      alert('Enter the backup password.');
+      return;
+    }
+    const confirmBtn = backdrop.querySelector('#rs-confirm');
+    confirmBtn.textContent = 'Restoring…';
+    confirmBtn.disabled = true;
+    try {
+      const json = await decryptText(encryptedContent, password);
+      Data.importBackup(json);
+      closeModal(backdrop);
+      alert('Backup restored successfully.');
+      currentScreen = 'home';
+      render();
+    } catch (e) {
+      alert(e.message || 'Could not restore this backup.');
+      confirmBtn.textContent = 'Restore';
+      confirmBtn.disabled = false;
+    }
+  };
 }
 
 // --- Customer modal (add / edit) ---
@@ -1035,11 +1173,74 @@ function exportTaxYearExcel(taxYear) {
 
 function maybeRunBackup() {
   if (!Data.needsBackup()) return;
-  const blob = Data.exportBackup();
+  const password = Data.getBackupPassword();
+  if (!password) return; // no password set yet — user needs to set one on the Backup screen first
+  downloadEncryptedBackup(password, 'roundly-backup.json').then(() => {
+    Data.markBackupDone();
+  });
+}
+
+// --- Backup encryption (Web Crypto: AES-GCM, key derived via PBKDF2) ---
+function bufToBase64(buf) {
+  return btoa(String.fromCharCode(...new Uint8Array(buf)));
+}
+function base64ToBuf(b64) {
+  return Uint8Array.from(atob(b64), c => c.charCodeAt(0)).buffer;
+}
+
+async function deriveKey(password, saltBytes) {
+  const enc = new TextEncoder();
+  const keyMaterial = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt: saltBytes, iterations: 150000, hash: 'SHA-256' },
+    keyMaterial,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt', 'decrypt']
+  );
+}
+
+async function encryptText(plaintext, password) {
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const key = await deriveKey(password, salt);
+  const enc = new TextEncoder();
+  const ciphertext = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, enc.encode(plaintext));
+  return JSON.stringify({
+    roundlyEncrypted: true,
+    salt: bufToBase64(salt),
+    iv: bufToBase64(iv),
+    data: bufToBase64(ciphertext)
+  });
+}
+
+async function decryptText(envelopeJson, password) {
+  let envelope;
+  try {
+    envelope = JSON.parse(envelopeJson);
+  } catch (e) {
+    throw new Error('That file isn\u2019t a valid Roundly backup.');
+  }
+  if (!envelope.roundlyEncrypted) throw new Error('That file isn\u2019t an encrypted Roundly backup.');
+  const salt = new Uint8Array(base64ToBuf(envelope.salt));
+  const iv = new Uint8Array(base64ToBuf(envelope.iv));
+  const key = await deriveKey(password, salt);
+  try {
+    const plainBuf = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, base64ToBuf(envelope.data));
+    return new TextDecoder().decode(plainBuf);
+  } catch (e) {
+    throw new Error('Wrong password, or the file is corrupted.');
+  }
+}
+
+async function downloadEncryptedBackup(password, filename) {
+  const json = Data.getBackupJSON();
+  const encrypted = await encryptText(json, password);
+  const blob = new Blob([encrypted], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = 'roundly-backup.json';
+  a.download = filename;
   document.body.appendChild(a);
   a.click();
   a.remove();
