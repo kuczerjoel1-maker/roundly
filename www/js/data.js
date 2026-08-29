@@ -211,6 +211,32 @@ const Data = {
     return store.visits.filter(v => v.customerId === customerId);
   },
 
+  updateVisit(id, updates) {
+    const store = loadStore();
+    const idx = store.visits.findIndex(v => v.id === id);
+    if (idx === -1) return null;
+    store.visits[idx] = { ...store.visits[idx], ...updates };
+    saveStore(store);
+    return store.visits[idx];
+  },
+
+  // Removes any visit(s) for this customer on this date — used when
+  // unchecking "Done" on the round screen to fully undo today's entry.
+  deleteVisitsForCustomerOnDate(customerId, date) {
+    const store = loadStore();
+    store.visits = store.visits.filter(v => !(v.customerId === customerId && v.date === date));
+    saveStore(store);
+  },
+
+  // Total unpaid amount across every visit this customer has ever had —
+  // used for the "Owing" column on the round screen.
+  getAmountOwedByCustomer(customerId) {
+    const store = loadStore();
+    return store.visits
+      .filter(v => v.customerId === customerId && !v.paid)
+      .reduce((sum, v) => sum + v.priceCharged, 0);
+  },
+
   // Returns the whole store as a plain JSON string, for the caller to encrypt.
   getBackupJSON() {
     const store = loadStore();

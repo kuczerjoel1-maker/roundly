@@ -374,34 +374,71 @@ function renderRoute() {
   };
 
   const list = document.createElement('div');
-  list.className = 'route-list';
-  const line = document.createElement('div');
-  line.className = 'route-line';
-  list.appendChild(line);
+  list.className = 'round-table';
+
+  const header = document.createElement('div');
+  header.className = 'round-table-row round-table-header';
+  header.innerHTML = `
+    <div></div>
+    <div>Customer</div>
+    <div>Date</div>
+    <div>Done</div>
+    <div>Paid</div>
+    <div>Owing</div>
+    <div></div>
+  `;
+  list.appendChild(header);
 
   customers.forEach((c, i) => {
-    const status = c.status === 'paused' ? 'paused' : visitStatusFor(c);
+    const todayVisit = Data.getVisitsForCustomer(c.id).find(v => v.date === todayISO());
+    const isDone = Boolean(todayVisit);
+    const isPaid = Boolean(todayVisit && todayVisit.paid);
+    const owed = Data.getAmountOwedByCustomer(c.id);
+    const formattedDate = new Date(todayISO()).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+
     const row = document.createElement('div');
-    row.className = 'stop-row';
+    row.className = 'round-table-row';
     row.innerHTML = `
-      <div class="stop-badge">${i + 1}</div>
-      <div class="stop-card">
-        <div>
-          <div class="stop-name">${escapeHtml(c.name)}</div>
-          <div class="stop-addr">${escapeHtml(c.address)}</div>
-          ${c.notes ? `<div class="stop-notes">📝 ${escapeHtml(c.notes)}</div>` : ''}
-        </div>
-        <div>
-          <div class="stop-price">£${c.price}</div>
-          <div class="status-pill status-${status}">${status.charAt(0).toUpperCase() + status.slice(1)}</div>
-        </div>
+      <div class="rt-badge">${i + 1}</div>
+      <div class="rt-info">
+        <div class="stop-name">${escapeHtml(c.name)}</div>
+        <div class="stop-addr">${escapeHtml(c.address)}</div>
+        ${c.notes ? `<div class="stop-notes">📝 ${escapeHtml(c.notes)}</div>` : ''}
       </div>
+      <div class="rt-date">${formattedDate}</div>
+      <div class="rt-check"><input type="checkbox" class="rt-done" ${isDone ? 'checked' : ''}></div>
+      <div class="rt-check"><input type="checkbox" class="rt-paid" ${isPaid ? 'checked' : ''} ${!isDone ? 'disabled' : ''}></div>
+      <div class="rt-owing">${owed > 0 ? '£' + owed : ''}</div>
       <div class="stop-reorder">
         <button class="reorder-btn" data-dir="up" ${i === 0 ? 'disabled' : ''} aria-label="Move up">▲</button>
         <button class="reorder-btn" data-dir="down" ${i === customers.length - 1 ? 'disabled' : ''} aria-label="Move down">▼</button>
       </div>
     `;
-    row.querySelector('.stop-card').onclick = () => openVisitModal(c);
+
+    // Tapping the customer info (not the checkboxes) opens the full detail modal,
+    // e.g. to adjust the price charged for today.
+    row.querySelector('.rt-info').onclick = () => openVisitModal(c);
+
+    const doneBox = row.querySelector('.rt-done');
+    const paidBox = row.querySelector('.rt-paid');
+
+    doneBox.onchange = () => {
+      if (doneBox.checked) {
+        Data.addVisit({ customerId: c.id, date: todayISO(), priceCharged: c.price, paid: false });
+      } else {
+        Data.deleteVisitsForCustomerOnDate(c.id, todayISO());
+      }
+      render();
+    };
+
+    paidBox.onchange = () => {
+      const visit = Data.getVisitsForCustomer(c.id).find(v => v.date === todayISO());
+      if (visit) {
+        Data.updateVisit(visit.id, { paid: paidBox.checked });
+      }
+      render();
+    };
+
     row.querySelectorAll('.reorder-btn').forEach(btn => {
       btn.onclick = (e) => {
         e.stopPropagation();
@@ -413,6 +450,7 @@ function renderRoute() {
         }
       };
     });
+
     list.appendChild(row);
   });
   wrap.appendChild(list);
