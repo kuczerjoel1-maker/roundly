@@ -12,16 +12,33 @@ const STORE_KEY = 'roundly_data_v1';
 function loadStore() {
   const raw = localStorage.getItem(STORE_KEY);
   if (!raw) {
-    return { customers: [], rounds: [], visits: [], settings: {} };
+    return { customers: [], rounds: [], visits: [], mileage: [], expenses: [], settings: {} };
   }
   try {
     const parsed = JSON.parse(raw);
     if (!parsed.rounds) parsed.rounds = [];
+    if (!parsed.mileage) parsed.mileage = [];
+    if (!parsed.expenses) parsed.expenses = [];
     return parsed;
   } catch (e) {
     console.error('Roundly: corrupt store, starting fresh', e);
-    return { customers: [], rounds: [], visits: [], settings: {} };
+    return { customers: [], rounds: [], visits: [], mileage: [], expenses: [], settings: {} };
   }
+}
+
+// UK tax year runs 6 April to 5 April. Returns a label like "2026/27".
+function taxYearFor(dateStr) {
+  const d = new Date(dateStr);
+  const year = d.getFullYear();
+  const boundary = new Date(year, 3, 6); // 6 April, month index 3
+  if (d >= boundary) {
+    return `${year}/${(year + 1).toString().slice(-2)}`;
+  }
+  return `${year - 1}/${year.toString().slice(-2)}`;
+}
+
+function currentTaxYear() {
+  return taxYearFor(new Date().toISOString().slice(0, 10));
 }
 
 function saveStore(store) {
@@ -201,5 +218,76 @@ const Data = {
   importBackup(json) {
     const parsed = JSON.parse(json);
     saveStore(parsed);
+  },
+
+  // --- Mileage (UK simplified mileage rate log) ---
+  getMileageTrips() {
+    const store = loadStore();
+    return store.mileage.slice().sort((a, b) => a.date.localeCompare(b.date));
+  },
+
+  addMileageTrip(trip) {
+    const store = loadStore();
+    const record = {
+      id: uid(),
+      date: trip.date || new Date().toISOString().slice(0, 10),
+      from: trip.from || '',
+      to: trip.to || '',
+      purpose: trip.purpose || '',
+      miles: Number(trip.miles) || 0,
+      roundId: trip.roundId || null
+    };
+    store.mileage.push(record);
+    saveStore(store);
+    return record;
+  },
+
+  deleteMileageTrip(id) {
+    const store = loadStore();
+    store.mileage = store.mileage.filter(m => m.id !== id);
+    saveStore(store);
+  },
+
+  // --- Expenses ---
+  getExpenses() {
+    const store = loadStore();
+    return store.expenses.slice().sort((a, b) => b.date.localeCompare(a.date));
+  },
+
+  addExpense(expense) {
+    const store = loadStore();
+    const record = {
+      id: uid(),
+      date: expense.date || new Date().toISOString().slice(0, 10),
+      category: expense.category || 'Other',
+      description: expense.description || '',
+      amount: Number(expense.amount) || 0
+    };
+    store.expenses.push(record);
+    saveStore(store);
+    return record;
+  },
+
+  deleteExpense(id) {
+    const store = loadStore();
+    store.expenses = store.expenses.filter(e => e.id !== id);
+    saveStore(store);
+  },
+
+  // Every tax year that has any mileage or expense entry, plus the current one, newest first
+  getAvailableTaxYears() {
+    const store = loadStore();
+    const years = new Set([currentTaxYear()]);
+    store.mileage.forEach(m => years.add(taxYearFor(m.date)));
+    store.expenses.forEach(e => years.add(taxYearFor(e.date)));
+    return [...years].sort().reverse();
+  },
+
+  getMileageTripsForTaxYear(taxYear) {
+    return this.getMileageTrips().filter(m => taxYearFor(m.date) === taxYear);
+  },
+
+  getExpensesForTaxYear(taxYear) {
+    return this.getExpenses().filter(e => taxYearFor(e.date) === taxYear);
   }
 };
