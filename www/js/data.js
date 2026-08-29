@@ -221,9 +221,13 @@ const Data = {
   },
 
   // --- Mileage (UK simplified mileage rate log) ---
+  // Each trip has an ordered list of stops (e.g. ["Home", "14 Larch Grove", "22 Larch Grove", "Home"]).
+  // Older entries recorded with just {from, to} are migrated to a 2-stop list on read.
   getMileageTrips() {
     const store = loadStore();
-    return store.mileage.slice().sort((a, b) => a.date.localeCompare(b.date));
+    return store.mileage
+      .map(m => m.stops ? m : { ...m, stops: [m.from || '', m.to || ''] })
+      .sort((a, b) => a.date.localeCompare(b.date));
   },
 
   addMileageTrip(trip) {
@@ -231,8 +235,7 @@ const Data = {
     const record = {
       id: uid(),
       date: trip.date || new Date().toISOString().slice(0, 10),
-      from: trip.from || '',
-      to: trip.to || '',
+      stops: (trip.stops || []).filter(s => s && s.trim()),
       purpose: trip.purpose || '',
       miles: Number(trip.miles) || 0,
       roundId: trip.roundId || null

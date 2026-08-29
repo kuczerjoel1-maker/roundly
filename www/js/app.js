@@ -559,7 +559,7 @@ function renderMileageSection() {
     const formatted = new Date(trip.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
     item.innerHTML = `
       <div>
-        <div class="stop-name">${escapeHtml(trip.from)} → ${escapeHtml(trip.to)}</div>
+        <div class="stop-name">${trip.stops.map(escapeHtml).join(' → ')}</div>
         <div class="stop-addr">${formatted} &middot; ${escapeHtml(trip.purpose)} &middot; ${trip.miles}mi</div>
       </div>
       <div class="stop-price">£${trip.value.toFixed(2)}</div>
@@ -866,16 +866,20 @@ function openMileageModal() {
   backdrop.innerHTML = `
     <div class="modal-sheet">
       <div class="field"><label>Date</label><input id="m-date" type="date" value="${todayISO()}"></div>
-      <div class="field"><label>From</label><input id="m-from" placeholder="e.g. home postcode"></div>
-      <div class="field"><label>To</label><input id="m-to" placeholder="e.g. destination postcode"></div>
       <div class="field"><label>Round (optional)</label>
         <select id="m-round">
           <option value="">None</option>
           ${rounds.map(r => `<option value="${r.id}">${escapeHtml(r.name)}</option>`).join('')}
         </select>
       </div>
+      <button type="button" class="secondary" id="m-fill-round" style="width:100%; margin-bottom:14px; display:none;">Fill stops from this round's order</button>
+      <div class="field">
+        <label>Stops (in order visited)</label>
+        <div id="m-stops"></div>
+        <button type="button" class="secondary" id="m-add-stop" style="width:100%; margin-top:6px;">+ Add stop</button>
+      </div>
       <div class="field"><label>Purpose</label><input id="m-purpose" placeholder="e.g. Northside round"></div>
-      <div class="field"><label>Miles</label><input id="m-miles" type="number" step="0.1"></div>
+      <div class="field"><label>Miles (whole trip)</label><input id="m-miles" type="number" step="0.1"></div>
       <div class="modal-actions">
         <button class="secondary" id="m-cancel">Cancel</button>
         <button class="primary" id="m-save">Add trip</button>
@@ -884,12 +888,46 @@ function openMileageModal() {
   `;
   openModal(backdrop);
 
-  backdrop.querySelector('#m-round').onchange = (e) => {
-    const round = rounds.find(r => r.id === e.target.value);
+  const stopsContainer = backdrop.querySelector('#m-stops');
+  function addStopRow(value) {
+    const row = document.createElement('div');
+    row.className = 'stop-input-row';
+    row.innerHTML = `
+      <input class="m-stop-input" value="${value ? escapeHtml(value) : ''}" placeholder="Postcode or address">
+      <button type="button" class="stop-remove" aria-label="Remove stop">×</button>
+    `;
+    row.querySelector('.stop-remove').onclick = () => {
+      if (stopsContainer.children.length > 2) row.remove();
+    };
+    stopsContainer.appendChild(row);
+  }
+  addStopRow(); // start with two blank stops (e.g. Home → first job)
+  addStopRow();
+
+  backdrop.querySelector('#m-add-stop').onclick = () => addStopRow();
+
+  const roundSelect = backdrop.querySelector('#m-round');
+  const fillBtn = backdrop.querySelector('#m-fill-round');
+  roundSelect.onchange = () => {
+    const round = rounds.find(r => r.id === roundSelect.value);
     const purposeField = backdrop.querySelector('#m-purpose');
-    if (round && !purposeField.value.trim()) {
-      purposeField.value = `${round.name} round`;
+    if (round) {
+      fillBtn.style.display = 'block';
+      if (!purposeField.value.trim()) purposeField.value = `${round.name} round`;
+    } else {
+      fillBtn.style.display = 'none';
     }
+  };
+  fillBtn.onclick = () => {
+    const round = rounds.find(r => r.id === roundSelect.value);
+    if (!round) return;
+    const customers = Data.getCustomersInRound(round.id);
+    if (!customers.length) {
+      alert('No customers assigned to this round yet.');
+      return;
+    }
+    stopsContainer.innerHTML = '';
+    customers.forEach(c => addStopRow(c.address));
   };
 
   backdrop.querySelector('#m-cancel').onclick = () => closeModal(backdrop);
@@ -899,13 +937,19 @@ function openMileageModal() {
       alert('Enter the number of miles first.');
       return;
     }
+    const stops = [...stopsContainer.querySelectorAll('.m-stop-input')]
+      .map(input => input.value.trim())
+      .filter(Boolean);
+    if (stops.length < 2) {
+      alert('Enter at least a start and end stop.');
+      return;
+    }
     Data.addMileageTrip({
       date: backdrop.querySelector('#m-date').value || todayISO(),
-      from: backdrop.querySelector('#m-from').value.trim(),
-      to: backdrop.querySelector('#m-to').value.trim(),
+      stops,
       purpose: backdrop.querySelector('#m-purpose').value.trim(),
       miles,
-      roundId: backdrop.querySelector('#m-round').value || null
+      roundId: roundSelect.value || null
     });
     closeModal(backdrop);
     render();
@@ -960,10 +1004,10 @@ function exportTaxYearExcel(taxYear) {
   const expenseTotal = expenses.reduce((sum, e) => sum + e.amount, 0);
 
   const mileageRows = [
-    ['Date', 'From', 'To', 'Purpose', 'Miles', 'Value (£)'],
-    ...entries.map(t => [t.date, t.from, t.to, t.purpose, t.miles, Number(t.value.toFixed(2))]),
+    ['Date', 'Route', 'Purpose', 'Miles', 'Value (£)'],
+    ...entries.map(t => [t.date, t.stops.join(' \u2192 '), t.purpose, t.miles, Number(t.value.toFixed(2))]),
     [],
-    ['', '', '', 'Total', totalMiles, Number(totalValue.toFixed(2))]
+    ['', 'Total', '', totalMiles, Number(totalValue.toFixed(2))]
   ];
 
   const expenseRows = [
