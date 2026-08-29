@@ -59,7 +59,12 @@ body {
 /* ---------- Home screen ---------- */
 .home-header {
   text-align: center;
-  padding: 2.25rem 0 1.75rem;
+  padding: 1.75rem 0 1.75rem;
+}
+.home-logo {
+  width: 64px;
+  height: 64px;
+  margin-bottom: 8px;
 }
 .home-title {
   font-size: 28px;
@@ -67,10 +72,16 @@ body {
   color: var(--rd-blue);
   letter-spacing: -0.6px;
 }
+.home-tagline {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  font-weight: 600;
+  margin-top: 2px;
+}
 .home-sub {
   font-size: 13px;
   color: var(--text-muted);
-  margin-top: 4px;
+  margin-top: 8px;
 }
 
 .home-grid {
