@@ -348,6 +348,36 @@ body.modal-open {
 }
 .field textarea { resize: vertical; min-height: 60px; }
 
+.stop-input-row {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.stop-input-row .m-stop-input {
+  flex: 1;
+  padding: 9px 11px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-family: inherit;
+  background: var(--bg);
+}
+.stop-input-row .m-stop-input:focus {
+  outline: none;
+  border-color: var(--rd-blue);
+  background: var(--surface);
+}
+.stop-remove {
+  width: 36px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--rd-red);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
 .address-suggestions {
   position: relative;
   margin-top: 4px;
