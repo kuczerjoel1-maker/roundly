@@ -665,10 +665,30 @@ function renderBackupScreen() {
   actionsHeading.textContent = 'Manual actions';
   wrap.appendChild(actionsHeading);
 
+  const shareBtn = document.createElement('button');
+  shareBtn.className = 'primary';
+  shareBtn.style.cssText = 'width:100%; margin-bottom:10px;';
+  shareBtn.textContent = 'Share backup (Drive, OneDrive, etc.)';
+  shareBtn.onclick = async () => {
+    const password = Data.getBackupPassword();
+    if (!password) {
+      alert('Set a backup password above first.');
+      return;
+    }
+    shareBtn.textContent = 'Preparing…';
+    shareBtn.disabled = true;
+    await shareEncryptedBackup(password);
+    Data.markBackupDone();
+    shareBtn.textContent = 'Share backup (Drive, OneDrive, etc.)';
+    shareBtn.disabled = false;
+    render();
+  };
+  wrap.appendChild(shareBtn);
+
   const downloadBtn = document.createElement('button');
   downloadBtn.className = 'secondary';
   downloadBtn.style.cssText = 'width:100%; margin-bottom:10px;';
-  downloadBtn.textContent = 'Download backup now';
+  downloadBtn.textContent = 'Download backup to this device';
   downloadBtn.onclick = async () => {
     const password = Data.getBackupPassword();
     if (!password) {
@@ -1245,6 +1265,38 @@ async function downloadEncryptedBackup(password, filename) {
   a.click();
   a.remove();
   URL.revokeObjectURL(url);
+}
+
+// Prepares the encrypted backup and hands it to Android's native share sheet,
+// so the person can save it straight into Drive, OneDrive, email, etc.
+// Falls back to a plain download if the share plugins aren't available
+// (e.g. testing in a regular browser rather than the installed app).
+async function shareEncryptedBackup(password) {
+  const json = Data.getBackupJSON();
+  const encrypted = await encryptText(json, password);
+  const filename = `roundly-backup-${todayISO()}.json`;
+
+  const plugins = window.Capacitor && window.Capacitor.Plugins;
+  if (plugins && plugins.Filesystem && plugins.Share) {
+    try {
+      await plugins.Filesystem.writeFile({
+        path: filename,
+        data: encrypted,
+        directory: 'CACHE',
+        encoding: 'utf8'
+      });
+      const uriResult = await plugins.Filesystem.getUri({ path: filename, directory: 'CACHE' });
+      await plugins.Share.share({
+        title: 'Roundly backup',
+        url: uriResult.uri,
+        dialogTitle: 'Save your backup to Drive, OneDrive, or anywhere else'
+      });
+      return;
+    } catch (e) {
+      console.error('Share failed, falling back to download', e);
+    }
+  }
+  await downloadEncryptedBackup(password, filename);
 }
 
 render();
