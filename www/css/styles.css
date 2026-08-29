@@ -200,13 +200,14 @@ body {
 .ledger-wrap {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
-  border-radius: var(--radius);
-  border: 1px solid var(--border);
-  background: var(--surface);
 }
 .ledger-grid {
   display: grid;
   align-items: stretch;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  width: fit-content;
 }
 .ledger-cell {
   padding: 8px 6px;
