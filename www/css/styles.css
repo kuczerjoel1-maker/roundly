@@ -190,6 +190,97 @@ body {
   border-color: var(--rd-blue-light);
 }
 
+/* ---------- Round ledger grid (Today's Round, date columns) ---------- */
+.ledger-legend {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-style: italic;
+  margin-bottom: 8px;
+}
+.ledger-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+.ledger-grid {
+  display: grid;
+  align-items: stretch;
+}
+.ledger-cell {
+  padding: 8px 6px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.ledger-header {
+  background: var(--bg);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+}
+.ledger-cell-info {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  justify-content: flex-start;
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 6px;
+}
+.ledger-header.ledger-cell-info {
+  background: var(--bg);
+  justify-content: flex-start;
+  align-items: center;
+  flex-direction: row;
+}
+.ledger-info-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  cursor: pointer;
+}
+.ledger-info-text { min-width: 0; }
+.ledger-info-text .stop-name { font-size: 13px; }
+.ledger-info-text .stop-addr { font-size: 11px; }
+.paused-tag {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--rd-gray-text);
+  background: var(--rd-gray-bg);
+  padding: 1px 6px;
+  border-radius: 10px;
+  margin-top: 3px;
+}
+.ledger-cell-date-header { white-space: nowrap; }
+.ledger-cell-check {
+  flex-direction: column;
+  gap: 4px;
+}
+.ledger-cell-check input[type="checkbox"] {
+  width: 18px; height: 18px;
+  accent-color: var(--rd-blue);
+}
+.ledger-cell-owing {
+  position: sticky;
+  right: 0;
+  z-index: 2;
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--rd-amber-text);
+}
+.ledger-header.ledger-cell-owing { background: var(--bg); }
+
 /* ---------- Round checkbox table (Today's Round) ---------- */
 .round-table {
   display: flex;
