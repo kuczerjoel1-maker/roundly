@@ -373,75 +373,75 @@ function renderRoute() {
     render();
   };
 
-  const list = document.createElement('div');
-  list.className = 'round-table';
+  // Build the set of date columns: each shown customer's own recent visit
+  // history, plus today, capped to the most recent few so the grid stays
+  // a reasonable width. Different customers may have blank cells on dates
+  // that weren't theirs — that's expected, same as a paper round book.
+  const today = todayISO();
+  const allDates = new Set([today]);
+  customers.forEach(c => {
+    Data.getVisitsForCustomer(c.id).forEach(v => allDates.add(v.date));
+  });
+  const sortedDates = [...allDates].sort();
+  const dateCols = sortedDates.slice(-5); // most recent 5 columns, today included
 
-  const header = document.createElement('div');
-  header.className = 'round-table-row round-table-header';
-  header.innerHTML = `
-    <div></div>
-    <div>Customer</div>
-    <div>Date</div>
-    <div>Done</div>
-    <div>Paid</div>
-    <div>Owing</div>
-    <div></div>
-  `;
-  list.appendChild(header);
+  const legend = document.createElement('div');
+  legend.className = 'ledger-legend';
+  legend.textContent = 'Each column: top box = done, bottom box = paid';
+  wrap.appendChild(legend);
 
+  const ledgerWrap = document.createElement('div');
+  ledgerWrap.className = 'ledger-wrap';
+  const grid = document.createElement('div');
+  grid.className = 'ledger-grid';
+  grid.style.gridTemplateColumns = `170px repeat(${dateCols.length}, 52px) 56px`;
+  ledgerWrap.appendChild(grid);
+  wrap.appendChild(ledgerWrap);
+
+  // --- Header row ---
+  const headerInfo = document.createElement('div');
+  headerInfo.className = 'ledger-cell ledger-cell-info ledger-header';
+  headerInfo.textContent = 'Customer';
+  grid.appendChild(headerInfo);
+
+  dateCols.forEach(d => {
+    const cell = document.createElement('div');
+    cell.className = 'ledger-cell ledger-header ledger-cell-date-header';
+    cell.textContent = d === today
+      ? 'Today'
+      : new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+    grid.appendChild(cell);
+  });
+
+  const headerOwing = document.createElement('div');
+  headerOwing.className = 'ledger-cell ledger-cell-owing ledger-header';
+  headerOwing.textContent = 'Owing';
+  grid.appendChild(headerOwing);
+
+  // --- Customer rows ---
   customers.forEach((c, i) => {
-    const todayVisit = Data.getVisitsForCustomer(c.id).find(v => v.date === todayISO());
-    const isDone = Boolean(todayVisit);
-    const isPaid = Boolean(todayVisit && todayVisit.paid);
     const owed = Data.getAmountOwedByCustomer(c.id);
-    const formattedDate = new Date(todayISO()).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 
-    const row = document.createElement('div');
-    row.className = 'round-table-row';
-    row.innerHTML = `
-      <div class="rt-badge">${i + 1}</div>
-      <div class="rt-info">
-        <div class="stop-name">${escapeHtml(c.name)}</div>
-        <div class="stop-addr">${escapeHtml(c.address)}</div>
-        ${c.notes ? `<div class="stop-notes">📝 ${escapeHtml(c.notes)}</div>` : ''}
+    const infoCell = document.createElement('div');
+    infoCell.className = 'ledger-cell ledger-cell-info';
+    infoCell.innerHTML = `
+      <div class="ledger-info-main">
+        <div class="rt-badge">${i + 1}</div>
+        <div class="ledger-info-text">
+          <div class="stop-name">${escapeHtml(c.name)}</div>
+          <div class="stop-addr">${escapeHtml(c.address)}</div>
+          ${c.status === 'paused' ? '<span class="paused-tag">Paused</span>' : ''}
+          ${c.notes ? `<div class="stop-notes">📝 ${escapeHtml(c.notes)}</div>` : ''}
+        </div>
       </div>
-      <div class="rt-date">${formattedDate}</div>
-      <div class="rt-check"><input type="checkbox" class="rt-done" ${isDone ? 'checked' : ''}></div>
-      <div class="rt-check"><input type="checkbox" class="rt-paid" ${isPaid ? 'checked' : ''} ${!isDone ? 'disabled' : ''}></div>
-      <div class="rt-owing">${owed > 0 ? '£' + owed : ''}</div>
       <div class="stop-reorder">
         <button class="reorder-btn" data-dir="up" ${i === 0 ? 'disabled' : ''} aria-label="Move up">▲</button>
         <button class="reorder-btn" data-dir="down" ${i === customers.length - 1 ? 'disabled' : ''} aria-label="Move down">▼</button>
       </div>
     `;
-
-    // Tapping the customer info (not the checkboxes) opens the full detail modal,
-    // e.g. to adjust the price charged for today.
-    row.querySelector('.rt-info').onclick = () => openVisitModal(c);
-
-    const doneBox = row.querySelector('.rt-done');
-    const paidBox = row.querySelector('.rt-paid');
-
-    doneBox.onchange = () => {
-      if (doneBox.checked) {
-        Data.addVisit({ customerId: c.id, date: todayISO(), priceCharged: c.price, paid: false });
-      } else {
-        Data.deleteVisitsForCustomerOnDate(c.id, todayISO());
-      }
-      render();
-    };
-
-    paidBox.onchange = () => {
-      const visit = Data.getVisitsForCustomer(c.id).find(v => v.date === todayISO());
-      if (visit) {
-        Data.updateVisit(visit.id, { paid: paidBox.checked });
-      }
-      render();
-    };
-
-    row.querySelectorAll('.reorder-btn').forEach(btn => {
-      btn.onclick = (e) => {
-        e.stopPropagation();
+    infoCell.querySelector('.ledger-info-text').onclick = () => openVisitModal(c);
+    infoCell.querySelectorAll('.reorder-btn').forEach(btn => {
+      btn.onclick = () => {
         const dir = btn.dataset.dir;
         const neighbor = dir === 'up' ? customers[i - 1] : customers[i + 1];
         if (neighbor) {
@@ -450,10 +450,46 @@ function renderRoute() {
         }
       };
     });
+    grid.appendChild(infoCell);
 
-    list.appendChild(row);
+    dateCols.forEach(d => {
+      const visit = Data.getVisitsForCustomer(c.id).find(v => v.date === d);
+      const isDone = Boolean(visit);
+      const isPaid = Boolean(visit && visit.paid);
+
+      const cell = document.createElement('div');
+      cell.className = 'ledger-cell ledger-cell-check';
+      cell.innerHTML = `
+        <input type="checkbox" class="ledger-done" ${isDone ? 'checked' : ''}>
+        <input type="checkbox" class="ledger-paid" ${isPaid ? 'checked' : ''} ${!isDone ? 'disabled' : ''}>
+      `;
+      const doneBox = cell.querySelector('.ledger-done');
+      const paidBox = cell.querySelector('.ledger-paid');
+
+      doneBox.onchange = () => {
+        if (doneBox.checked) {
+          Data.addVisit({ customerId: c.id, date: d, priceCharged: c.price, paid: false });
+        } else {
+          Data.deleteVisitsForCustomerOnDate(c.id, d);
+        }
+        render();
+      };
+
+      paidBox.onchange = () => {
+        const v = Data.getVisitsForCustomer(c.id).find(v2 => v2.date === d);
+        if (v) Data.updateVisit(v.id, { paid: paidBox.checked });
+        render();
+      };
+
+      grid.appendChild(cell);
+    });
+
+    const owingCell = document.createElement('div');
+    owingCell.className = 'ledger-cell ledger-cell-owing';
+    owingCell.textContent = owed > 0 ? '£' + owed : '';
+    grid.appendChild(owingCell);
   });
-  wrap.appendChild(list);
+
   return wrap;
 }
 
