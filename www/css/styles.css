@@ -107,6 +107,19 @@ body {
 .home-card-label { font-size: 15px; font-weight: 600; }
 .home-card-desc { font-size: 12px; color: var(--text-secondary); line-height: 1.35; }
 
+.reminder-banner {
+  width: 100%;
+  margin-top: 14px;
+  padding: 14px 16px;
+  background: var(--rd-amber-bg);
+  border: 1px solid #F0DDAF;
+  border-radius: var(--radius);
+  text-align: left;
+  cursor: pointer;
+}
+.reminder-title { font-size: 14px; font-weight: 700; color: var(--rd-amber-text); }
+.reminder-sub { font-size: 12px; color: var(--rd-amber-text); margin-top: 2px; opacity: 0.85; }
+
 /* ---------- Navigation ---------- */
 .back-bar {
   background: none;
@@ -182,6 +195,32 @@ body {
 }
 
 .stop-row { display: flex; align-items: center; gap: 12px; position: relative; }
+.stop-notes {
+  font-size: 11.5px;
+  color: var(--rd-blue);
+  margin-top: 3px;
+  line-height: 1.3;
+}
+.stop-reorder {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.reorder-btn {
+  width: 26px;
+  height: 22px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-size: 10px;
+  cursor: pointer;
+}
+.reorder-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
 .stop-badge {
   width: 30px; height: 30px; border-radius: 50%;
   background: var(--surface);
