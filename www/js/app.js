@@ -79,6 +79,20 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
+// Small inline line-icons matching the home screen's icon set, used in
+// place of emoji (which render inconsistently across Android devices).
+const ICON_PATHS = {
+  notes: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>',
+  pin: '<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>',
+  cloud: '<path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/>',
+  lock: '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+  alert: '<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>',
+  check: '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>'
+};
+function icon(name, size = 14) {
+  return `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px; display:inline-block; margin-right:3px; flex-shrink:0;">${ICON_PATHS[name]}</svg>`;
+}
+
 function openModal(backdrop) {
   document.body.appendChild(backdrop);
   document.body.classList.add('modal-open');
@@ -293,7 +307,7 @@ function renderHome() {
     const lastShared = Data.getLastSharedTime();
     banner.innerHTML = `
       <div>
-        <div class="reminder-title">☁️ Back up to the cloud</div>
+        <div class="reminder-title">${icon('cloud', 15)}Back up to the cloud</div>
         <div class="reminder-sub">${lastShared ? 'Last shared ' + new Date(lastShared).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : 'Never shared yet'} — tap to share a backup</div>
       </div>
     `;
@@ -466,7 +480,7 @@ function renderRoute() {
           <div class="stop-name">${escapeHtml(c.name)}</div>
           <div class="stop-addr">${escapeHtml(c.address)}</div>
           ${c.status === 'paused' ? '<span class="paused-tag">Paused</span>' : ''}
-          ${c.notes ? `<div class="stop-notes">📝 ${escapeHtml(c.notes)}</div>` : ''}
+          ${c.notes ? `<div class="stop-notes">${icon('notes', 12)}${escapeHtml(c.notes)}</div>` : ''}
         </div>
       </div>
       <div class="stop-reorder">
@@ -789,7 +803,7 @@ function renderBackupScreen() {
   statusCard.style.cssText = 'cursor:default;';
   statusCard.innerHTML = `
     <div>
-      <div class="stop-name">${hasPassword ? '🔒 Backup password is set' : '⚠️ No backup password set'}</div>
+      <div class="stop-name">${hasPassword ? icon('lock', 15) + 'Backup password is set' : icon('alert', 15) + 'No backup password set'}</div>
       <div class="stop-addr">${lastBackup ? 'Last backup: ' + new Date(lastBackup).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'No backup taken yet'}</div>
     </div>
   `;
@@ -947,7 +961,7 @@ function openCustomerModal(customer) {
         <label>Address</label>
         <input id="f-address" value="${customer ? escapeHtml(customer.address) : ''}" autocomplete="off" placeholder="Start typing to search…">
         <div id="f-address-suggestions" class="address-suggestions"></div>
-        <div id="f-address-status" class="address-status">${customer && customer.lat != null ? '📍 Location saved' : ''}</div>
+        <div id="f-address-status" class="address-status">${customer && customer.lat != null ? icon('pin', 12) + 'Location saved' : ''}</div>
       </div>
       <div class="field"><label>Phone</label><input id="f-phone" value="${customer ? escapeHtml(customer.phone) : ''}"></div>
       <div class="field"><label>Price (£)</label><input id="f-price" type="number" value="${customer ? customer.price : ''}"></div>
@@ -1013,7 +1027,7 @@ function openCustomerModal(customer) {
         selectedCoords = { lat: results[i].lat, lng: results[i].lng };
         lastConfirmedAddress = results[i].label;
         suggestionsBox.innerHTML = '';
-        statusBox.textContent = '📍 Location saved';
+        statusBox.innerHTML = icon('pin', 12) + 'Location saved';
       };
     });
   }, 400);
@@ -1234,7 +1248,7 @@ function openMileageModal(trip) {
     row.className = 'stop-input-row';
     row.innerHTML = `
       <input class="m-stop-input" value="${value ? escapeHtml(value) : ''}" placeholder="Postcode or address">
-      <button type="button" class="stop-locate" aria-label="Use my location">📍</button>
+      <button type="button" class="stop-locate" aria-label="Use my location">${icon('pin', 16)}</button>
       <button type="button" class="stop-remove" aria-label="Remove stop">×</button>
     `;
     const stopInput = row.querySelector('.m-stop-input');
@@ -1250,7 +1264,7 @@ function openMileageModal(trip) {
         alert('Couldn\u2019t get your location — check location permission is allowed for this app.');
       }
       locateBtn.disabled = false;
-      locateBtn.textContent = '📍';
+      locateBtn.innerHTML = icon('pin', 16);
     };
     row.querySelector('.stop-remove').onclick = () => {
       if (stopsContainer.children.length > 2) row.remove();
@@ -1329,7 +1343,7 @@ function openMileageModal(trip) {
       if (!data.routes || !data.routes.length) throw new Error('No route found');
       const miles = data.routes[0].distance / 1609.34;
       backdrop.querySelector('#m-miles').value = miles.toFixed(1);
-      calcStatus.textContent = `📍 Calculated from ${stops.length} stops`;
+      calcStatus.innerHTML = icon('check', 12) + `Calculated from ${stops.length} stops`;
     } catch (e) {
       alert('Couldn\u2019t calculate a driving route — check your connection, or enter miles manually.');
     }
