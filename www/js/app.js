@@ -87,10 +87,27 @@ const ICON_PATHS = {
   cloud: '<path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/>',
   lock: '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
   alert: '<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>',
-  check: '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>'
+  check: '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>',
+  route: '<circle cx="6" cy="19" r="2"/><circle cx="18" cy="5" r="2"/><path d="M6 17V9a4 4 0 0 1 4-4h4"/>',
+  customers: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+  list: '<line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>',
+  expenses: '<line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>',
+  search: '<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>',
+  map: '<polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/>'
 };
 function icon(name, size = 14) {
   return `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px; display:inline-block; margin-right:3px; flex-shrink:0;">${ICON_PATHS[name]}</svg>`;
+}
+
+// Larger, centred icon + heading + subtext for empty-state screens
+function emptyState(iconName, title, subtext) {
+  return `
+    <div class="empty-state">
+      <div class="empty-state-icon">${icon(iconName, 30)}</div>
+      <div class="empty-state-title">${title}</div>
+      ${subtext ? `<div class="empty-state-sub">${subtext}</div>` : ''}
+    </div>
+  `;
 }
 
 function openModal(backdrop) {
@@ -382,8 +399,7 @@ function renderRoundPicker() {
 
   if (!rounds.length) {
     const hint = document.createElement('div');
-    hint.className = 'empty-state';
-    hint.innerHTML = `No named rounds yet.<br>Set one up under Rounds on the home screen.`;
+    hint.innerHTML = emptyState('list', 'No named rounds yet', 'Set one up under Rounds on the home screen.');
     wrap.appendChild(hint);
     return wrap;
   }
@@ -404,7 +420,7 @@ function renderRoute() {
   const customers = Data.getCustomersInRoundOrAll().filter(belongsOnTodaysRound);
 
   if (!customers.length) {
-    wrap.innerHTML = `<div class="empty-state">No stops due today in this round.</div>`;
+    wrap.innerHTML = emptyState('route', 'No stops due today', 'Nobody in this round is due — enjoy the day off.');
     return wrap;
   }
 
@@ -547,7 +563,7 @@ function renderCustomers() {
   const allCustomers = Data.getCustomers(true);
 
   if (!allCustomers.length) {
-    wrap.innerHTML = `<div class="empty-state">No customers yet.<br>Tap + to add your first one.</div>`;
+    wrap.innerHTML = emptyState('customers', 'No customers yet', 'Tap + to add your first one.');
     return wrap;
   }
 
@@ -569,7 +585,7 @@ function renderCustomers() {
 
     listContainer.innerHTML = '';
     if (!customers.length) {
-      listContainer.innerHTML = `<div class="empty-state">No customers match "${escapeHtml(query)}".</div>`;
+      listContainer.innerHTML = emptyState('search', 'No matches', `Nothing found for "${escapeHtml(query)}".`);
       return;
     }
     customers.forEach(c => {
@@ -601,7 +617,7 @@ function renderRounds() {
   const rounds = Data.getRounds();
 
   if (!rounds.length) {
-    wrap.innerHTML = `<div class="empty-state">No rounds yet.<br>Tap + to create one (e.g. "Northside").</div>`;
+    wrap.innerHTML = emptyState('list', 'No rounds yet', 'Tap + to create one (e.g. "Northside").');
     return wrap;
   }
 
@@ -620,7 +636,7 @@ function renderRoundDetail() {
   const wrap = document.createElement('div');
   const round = Data.getRounds().find(r => r.id === activeRoundId);
   if (!round) {
-    wrap.innerHTML = `<div class="empty-state">Round not found.</div>`;
+    wrap.innerHTML = emptyState('alert', 'Round not found', 'It may have been deleted.');
     return wrap;
   }
 
@@ -642,7 +658,7 @@ function renderRoundDetail() {
     const none = document.createElement('div');
     none.className = 'empty-state';
     none.style.padding = '1.5rem';
-    none.textContent = 'Nobody in this round owes anything.';
+    none.innerHTML = icon('check', 14) + 'Nobody in this round owes anything.';
     wrap.appendChild(none);
   } else {
     stats.owing.forEach(({ customer, owed }) => {
@@ -666,7 +682,7 @@ function renderRoundDetail() {
     const none = document.createElement('div');
     none.className = 'empty-state';
     none.style.padding = '1.5rem';
-    none.textContent = 'This round hasn\u2019t been worked yet.';
+    none.innerHTML = icon('route', 14) + 'This round hasn\u2019t been worked yet.';
     wrap.appendChild(none);
   } else {
     stats.dates.forEach(({ date, count }) => {
@@ -740,7 +756,7 @@ function renderMileageSection() {
   wrap.appendChild(summary);
 
   if (!entries.length) {
-    wrap.innerHTML += `<div class="empty-state">No mileage logged for ${selectedTaxYear} yet.<br>Tap + to add a trip.</div>`;
+    wrap.innerHTML += emptyState('route', 'No mileage logged', `Nothing recorded for ${selectedTaxYear} yet — tap + to add a trip.`);
     return wrap;
   }
 
@@ -772,7 +788,7 @@ function renderExpensesSection() {
   wrap.appendChild(summary);
 
   if (!expenses.length) {
-    wrap.innerHTML += `<div class="empty-state">No expenses logged for ${selectedTaxYear} yet.<br>Tap + to add one.</div>`;
+    wrap.innerHTML += emptyState('expenses', 'No expenses logged', `Nothing recorded for ${selectedTaxYear} yet — tap + to add one.`);
     return wrap;
   }
 
@@ -1172,7 +1188,7 @@ function showMapModal(customers) {
         <button class="secondary" id="map-close">Close</button>
       </div>
       ${withCoords.length ? '<div id="map-container"></div>' :
-        '<div class="empty-state">None of these customers have a located address yet.<br>Save/edit them once online to place them on the map.</div>'}
+        emptyState('map', 'No located addresses yet', 'Save or edit these customers once online to place them on the map.')}
       ${withCoords.length < customers.length ? `<div class="map-note">${customers.length - withCoords.length} stop${customers.length - withCoords.length === 1 ? '' : 's'} not shown (address not yet located)</div>` : ''}
     </div>
   `;
