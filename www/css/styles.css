@@ -563,6 +563,16 @@ body.modal-open {
   line-height: 1;
   cursor: pointer;
 }
+.stop-locate {
+  width: 36px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+}
+.stop-locate:disabled { opacity: 0.5; }
 
 .address-suggestions {
   position: relative;
