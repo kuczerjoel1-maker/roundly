@@ -1178,7 +1178,12 @@ function openMileageModal(trip) {
         <button type="button" class="secondary" id="m-add-stop" style="width:100%; margin-top:6px;">+ Add stop</button>
       </div>
       <div class="field"><label>Purpose</label><input id="m-purpose" value="${isEdit ? escapeHtml(trip.purpose) : ''}" placeholder="e.g. Northside round"></div>
-      <div class="field"><label>Miles (whole trip)</label><input id="m-miles" type="number" step="0.1" value="${isEdit ? trip.miles : ''}"></div>
+      <div class="field">
+        <label>Miles (whole trip)</label>
+        <input id="m-miles" type="number" step="0.1" value="${isEdit ? trip.miles : ''}">
+        <button type="button" class="secondary" id="m-calc-miles" style="width:100%; margin-top:8px;">Calculate miles from stops</button>
+        <div id="m-calc-status" class="address-status"></div>
+      </div>
       <div class="modal-actions">
         <button class="secondary" id="m-cancel">Cancel</button>
         <button class="primary" id="m-save">${isEdit ? 'Save changes' : 'Add trip'}</button>
@@ -1233,6 +1238,52 @@ function openMileageModal(trip) {
     }
     stopsContainer.innerHTML = '';
     customers.forEach(c => addStopRow(c.address));
+  };
+
+  const calcBtn = backdrop.querySelector('#m-calc-miles');
+  const calcStatus = backdrop.querySelector('#m-calc-status');
+  calcBtn.onclick = async () => {
+    const stops = [...stopsContainer.querySelectorAll('.m-stop-input')]
+      .map(input => input.value.trim())
+      .filter(Boolean);
+    if (stops.length < 2) {
+      alert('Enter at least a start and end stop first.');
+      return;
+    }
+    calcBtn.disabled = true;
+    calcBtn.textContent = 'Locating stops…';
+    calcStatus.textContent = '';
+
+    const coords = [];
+    for (let i = 0; i < stops.length; i++) {
+      calcBtn.textContent = `Locating stop ${i + 1} of ${stops.length}…`;
+      const result = await geocodeAddress(stops[i]);
+      if (!result) {
+        alert(`Couldn't locate "${stops[i]}" — try a fuller address, or enter miles manually.`);
+        calcBtn.disabled = false;
+        calcBtn.textContent = 'Calculate miles from stops';
+        return;
+      }
+      coords.push(result);
+      // Stay within the free routing service's 1-request-per-second limit
+      if (i < stops.length - 1) await new Promise(r => setTimeout(r, 1100));
+    }
+
+    calcBtn.textContent = 'Calculating route…';
+    try {
+      const coordStr = coords.map(c => `${c.lng},${c.lat}`).join(';');
+      const url = `https://router.project-osrm.org/route/v1/driving/${coordStr}?overview=false`;
+      const res = await fetch(url);
+      const data = await res.json();
+      if (!data.routes || !data.routes.length) throw new Error('No route found');
+      const miles = data.routes[0].distance / 1609.34;
+      backdrop.querySelector('#m-miles').value = miles.toFixed(1);
+      calcStatus.textContent = `📍 Calculated from ${stops.length} stops`;
+    } catch (e) {
+      alert('Couldn\u2019t calculate a driving route — check your connection, or enter miles manually.');
+    }
+    calcBtn.disabled = false;
+    calcBtn.textContent = 'Calculate miles from stops';
   };
 
   if (isEdit) {
