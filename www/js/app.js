@@ -118,6 +118,41 @@ async function geocodeAddress(address) {
   return results.length ? { lat: results[0].lat, lng: results[0].lng } : null;
 }
 
+// Gets the device's current GPS position — uses the native Capacitor plugin
+// when running as the installed app (handles the Android permission prompt
+// automatically), falling back to the plain browser API otherwise.
+async function getCurrentCoords() {
+  const plugins = window.Capacitor && window.Capacitor.Plugins;
+  if (plugins && plugins.Geolocation) {
+    const pos = await plugins.Geolocation.getCurrentPosition();
+    return { lat: pos.coords.latitude, lng: pos.coords.longitude };
+  }
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) {
+      reject(new Error('Geolocation not available on this device.'));
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      pos => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      err => reject(err),
+      { enableHighAccuracy: true, timeout: 15000 }
+    );
+  });
+}
+
+// Turns coordinates back into a readable address (free, same OpenStreetMap service)
+async function reverseGeocode(lat, lng) {
+  try {
+    const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`;
+    const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.display_name || null;
+  } catch (e) {
+    return null;
+  }
+}
+
 // --- Distance (straight-line, in km) between two lat/lng points ---
 function haversineKm(a, b) {
   const R = 6371;
@@ -1199,8 +1234,24 @@ function openMileageModal(trip) {
     row.className = 'stop-input-row';
     row.innerHTML = `
       <input class="m-stop-input" value="${value ? escapeHtml(value) : ''}" placeholder="Postcode or address">
+      <button type="button" class="stop-locate" aria-label="Use my location">📍</button>
       <button type="button" class="stop-remove" aria-label="Remove stop">×</button>
     `;
+    const stopInput = row.querySelector('.m-stop-input');
+    const locateBtn = row.querySelector('.stop-locate');
+    locateBtn.onclick = async () => {
+      locateBtn.disabled = true;
+      locateBtn.textContent = '…';
+      try {
+        const coords = await getCurrentCoords();
+        const label = await reverseGeocode(coords.lat, coords.lng);
+        stopInput.value = label || `${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}`;
+      } catch (e) {
+        alert('Couldn\u2019t get your location — check location permission is allowed for this app.');
+      }
+      locateBtn.disabled = false;
+      locateBtn.textContent = '📍';
+    };
     row.querySelector('.stop-remove').onclick = () => {
       if (stopsContainer.children.length > 2) row.remove();
     };
