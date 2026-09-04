@@ -217,9 +217,12 @@ function optimizeOrder(customers) {
   return [...ordered, ...withoutCoords];
 }
 
+let lastRenderedScreen = null;
+
 function render() {
   try {
     const app = document.getElementById('app');
+    const isNavigation = currentScreen !== lastRenderedScreen;
     app.innerHTML = '';
 
     if (currentScreen === 'home') {
@@ -260,6 +263,13 @@ function render() {
       fab.onclick = () => expensesSubTab === 'mileage' ? openMileageModal() : openExpenseModal();
       app.appendChild(fab);
     }
+
+    if (isNavigation) {
+      app.classList.remove('screen-enter');
+      void app.offsetWidth; // force reflow so the animation restarts every time
+      app.classList.add('screen-enter');
+    }
+    lastRenderedScreen = currentScreen;
 
     maybeRunBackup();
     window.scrollTo(0, 0);
