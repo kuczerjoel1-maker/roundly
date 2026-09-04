@@ -90,6 +90,49 @@ body {
   min-height: 100vh;
 }
 
+/* ---------- Bottom nav (landscape / wider screens only) ---------- */
+#bottom-nav {
+  display: none;
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  padding: 8px 8px calc(env(safe-area-inset-bottom, 0px) + 8px);
+  justify-content: center;
+  gap: 4px;
+  z-index: 5;
+}
+.bottom-nav-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-weight: 600;
+  padding: 6px 16px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  min-width: 64px;
+}
+.bottom-nav-btn svg { margin-right: 0; }
+.bottom-nav-btn.active {
+  color: var(--rd-blue);
+  background: var(--rd-blue-light);
+}
+
+@media (orientation: landscape) {
+  #app {
+    max-width: 900px;
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 5.5rem + 64px);
+  }
+  #bottom-nav { display: flex; }
+  .fab { bottom: calc(70px + env(safe-area-inset-bottom, 0px)); }
+  .home-grid { grid-template-columns: repeat(3, 1fr); }
+}
+
 @keyframes screenFadeIn {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
