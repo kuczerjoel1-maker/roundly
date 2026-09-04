@@ -294,7 +294,7 @@ function renderHome() {
   const wrap = document.createElement('div');
   wrap.innerHTML = `
     <div class="home-header">
-      <img src="assets/logo.png" alt="Roundly" class="home-logo">
+      <div class="home-logo-wrap"><img src="assets/logo.png" alt="Roundly" class="home-logo"></div>
       <div class="home-title">roundly</div>
       <div class="home-tagline">Your Route. Your Customers. Your Business.</div>
       <div class="home-sub">${new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}</div>
@@ -1016,7 +1016,7 @@ function openCustomerModal(customer) {
         <button class="secondary" id="f-cancel">Cancel</button>
         <button class="primary" id="f-save">${isEdit ? 'Save changes' : 'Add customer'}</button>
       </div>
-      ${isEdit ? `<button class="secondary" id="f-delete" style="width:100%; margin-top:8px; color:#A32D2D; border-color:#F09595;">Delete customer</button>` : ''}
+      ${isEdit ? `<button class="secondary" id="f-delete" style="width:100%; margin-top:8px; color:var(--rd-danger-text); border-color:var(--rd-danger-border);">Delete customer</button>` : ''}
     </div>
   `;
   openModal(backdrop);
@@ -1124,7 +1124,7 @@ function openRoundModal(round) {
         <button class="secondary" id="r-cancel">Cancel</button>
         <button class="primary" id="r-save">${isEdit ? 'Save changes' : 'Add round'}</button>
       </div>
-      ${isEdit ? `<button class="secondary" id="r-delete" style="width:100%; margin-top:8px; color:#A32D2D; border-color:#F09595;">Delete round</button>` : ''}
+      ${isEdit ? `<button class="secondary" id="r-delete" style="width:100%; margin-top:8px; color:var(--rd-danger-text); border-color:var(--rd-danger-border);">Delete round</button>` : ''}
     </div>
   `;
   openModal(backdrop);
@@ -1263,7 +1263,7 @@ function openMileageModal(trip) {
         <button class="secondary" id="m-cancel">Cancel</button>
         <button class="primary" id="m-save">${isEdit ? 'Save changes' : 'Add trip'}</button>
       </div>
-      ${isEdit ? `<button class="secondary" id="m-delete" style="width:100%; margin-top:8px; color:#A32D2D; border-color:#F09595;">Delete trip</button>` : ''}
+      ${isEdit ? `<button class="secondary" id="m-delete" style="width:100%; margin-top:8px; color:var(--rd-danger-text); border-color:var(--rd-danger-border);">Delete trip</button>` : ''}
     </div>
   `;
   openModal(backdrop);
@@ -1438,7 +1438,7 @@ function openExpenseModal(expense) {
         <button class="secondary" id="e-cancel">Cancel</button>
         <button class="primary" id="e-save">${isEdit ? 'Save changes' : 'Add expense'}</button>
       </div>
-      ${isEdit ? `<button class="secondary" id="e-delete" style="width:100%; margin-top:8px; color:#A32D2D; border-color:#F09595;">Delete expense</button>` : ''}
+      ${isEdit ? `<button class="secondary" id="e-delete" style="width:100%; margin-top:8px; color:var(--rd-danger-text); border-color:var(--rd-danger-border);">Delete expense</button>` : ''}
     </div>
   `;
   openModal(backdrop);
