@@ -56,6 +56,14 @@ body {
   min-height: 100vh;
 }
 
+@keyframes screenFadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+#app.screen-enter {
+  animation: screenFadeIn 0.2s ease;
+}
+
 /* ---------- Home screen ---------- */
 .home-header {
   text-align: center;
