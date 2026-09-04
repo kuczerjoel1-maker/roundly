@@ -93,7 +93,8 @@ const ICON_PATHS = {
   list: '<line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>',
   expenses: '<line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>',
   search: '<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>',
-  map: '<polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/>'
+  map: '<polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/>',
+  home: '<path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>'
 };
 function icon(name, size = 14) {
   return `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px; display:inline-block; margin-right:3px; flex-shrink:0;">${ICON_PATHS[name]}</svg>`;
@@ -219,6 +220,42 @@ function optimizeOrder(customers) {
 
 let lastRenderedScreen = null;
 
+// Maps whichever detail/sub-screen is showing back to the bottom-nav
+// button that should be highlighted (e.g. Route belongs to the Round tab).
+function navKeyForScreen(screen) {
+  const map = { route: 'roundPicker', roundDetail: 'rounds' };
+  return map[screen] || screen;
+}
+
+// Persistent bottom icon bar, shown only in landscape (e.g. tablets) via
+// CSS. Built once and left in the DOM — unlike #app, it isn't rebuilt on
+// every render, just has its active button updated.
+function buildBottomNav() {
+  const nav = document.createElement('nav');
+  nav.id = 'bottom-nav';
+  const items = [
+    { key: 'home', label: 'Home', iconName: 'home' },
+    { key: 'roundPicker', label: 'Round', iconName: 'route' },
+    { key: 'customers', label: 'Customers', iconName: 'customers' },
+    { key: 'rounds', label: 'Rounds', iconName: 'list' },
+    { key: 'expenses', label: 'Expenses', iconName: 'expenses' },
+    { key: 'backup', label: 'Backup', iconName: 'cloud' }
+  ];
+  items.forEach(item => {
+    const btn = document.createElement('button');
+    btn.className = 'bottom-nav-btn';
+    btn.dataset.screen = item.key;
+    btn.innerHTML = `${icon(item.iconName, 20)}<span>${item.label}</span>`;
+    btn.onclick = () => {
+      currentScreen = item.key;
+      render();
+    };
+    nav.appendChild(btn);
+  });
+  document.body.appendChild(nav);
+  return nav;
+}
+
 function render() {
   try {
     const app = document.getElementById('app');
@@ -270,6 +307,11 @@ function render() {
       app.classList.add('screen-enter');
     }
     lastRenderedScreen = currentScreen;
+
+    const activeNavKey = navKeyForScreen(currentScreen);
+    document.querySelectorAll('.bottom-nav-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.screen === activeNavKey);
+    });
 
     maybeRunBackup();
     window.scrollTo(0, 0);
@@ -1621,4 +1663,5 @@ async function shareEncryptedBackup(password) {
   await downloadEncryptedBackup(password, filename);
 }
 
+buildBottomNav();
 render();
