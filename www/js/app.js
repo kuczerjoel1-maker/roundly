@@ -342,6 +342,24 @@ function renderHome() {
       <div class="home-sub">${new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}</div>
     </div>
   `;
+  const dashboard = document.createElement('div');
+  dashboard.className = 'home-dashboard';
+  const allDue = Data.getCustomers().filter(belongsOnTodaysRound);
+  const owedToday = allDue.filter(c => visitStatusFor(c) === 'due').reduce((sum, c) => sum + c.price, 0);
+  dashboard.innerHTML = `
+    <div class="home-dash-stats">
+      <div class="stat-pill"><div class="num">${allDue.length}</div><div class="label">due today</div></div>
+      <div class="stat-pill"><div class="num" style="color:var(--rd-amber-text)">£${owedToday}</div><div class="label">due today</div></div>
+    </div>
+    <button class="primary home-dash-cta">Start Today's Round</button>
+  `;
+  dashboard.querySelector('.home-dash-cta').onclick = () => {
+    activeRoundId = null;
+    currentScreen = 'route';
+    render();
+  };
+  wrap.appendChild(dashboard);
+
   const grid = document.createElement('div');
   grid.className = 'home-grid';
 
