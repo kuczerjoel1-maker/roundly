@@ -123,16 +123,6 @@ body {
   background: var(--rd-blue-light);
 }
 
-@media (orientation: landscape) {
-  #app {
-    max-width: 900px;
-    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 5.5rem + 64px);
-  }
-  #bottom-nav { display: flex; }
-  .fab { bottom: calc(92px + env(safe-area-inset-bottom, 0px)); }
-  .home-grid { grid-template-columns: repeat(3, 1fr); }
-}
-
 @keyframes screenFadeIn {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
@@ -744,4 +734,17 @@ body.modal-open {
   color: var(--text-muted);
   margin-top: 8px;
   text-align: center;
+}
+
+/* ---------- Landscape layout overrides ---------- */
+/* Placed at the end of the file so these overrides always win by source
+   order over the base rules above, regardless of media query matching. */
+@media (orientation: landscape) {
+  #app {
+    max-width: 900px;
+    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 5.5rem + 64px);
+  }
+  #bottom-nav { display: flex; }
+  .fab { bottom: calc(92px + env(safe-area-inset-bottom, 0px)); }
+  .home-grid { grid-template-columns: repeat(3, 1fr); }
 }
