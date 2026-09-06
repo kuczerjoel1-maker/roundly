@@ -167,6 +167,22 @@ body {
   margin-top: 8px;
 }
 
+.home-dashboard {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 18px 16px;
+  margin-bottom: 16px;
+  box-shadow: var(--shadow-sm);
+}
+.home-dash-stats {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.home-dash-stats .stat-pill { flex: 1; }
+.home-dash-cta { width: 100%; }
+
 .home-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -746,5 +762,5 @@ body.modal-open {
   }
   #bottom-nav { display: flex; }
   .fab { bottom: calc(92px + env(safe-area-inset-bottom, 0px)); }
-  .home-grid { grid-template-columns: repeat(3, 1fr); }
+  .home-grid { display: none; }
 }
