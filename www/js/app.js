@@ -3,6 +3,7 @@ let currentScreen = 'home'; // home | roundPicker | route | customers | rounds |
 let activeRoundId = null;   // null = "all customers" round
 let expensesSubTab = 'mileage'; // mileage | expenses
 let selectedTaxYear = null; // set on first render of Expenses screen
+let showAllInRound = false; // override: show everyone in the round, not just who's due
 
 window.addEventListener('error', (e) => {
   const app = document.getElementById('app');
@@ -355,6 +356,7 @@ function renderHome() {
   `;
   dashboard.querySelector('.home-dash-cta').onclick = () => {
     activeRoundId = null;
+    showAllInRound = false;
     currentScreen = 'route';
     render();
   };
@@ -464,7 +466,7 @@ function renderRoundPicker() {
   const allBtn = document.createElement('div');
   allBtn.className = 'list-item';
   allBtn.innerHTML = `<div><div class="stop-name">All customers</div><div class="stop-addr">Every active customer, no round filter</div></div>`;
-  allBtn.onclick = () => { activeRoundId = null; currentScreen = 'route'; render(); };
+  allBtn.onclick = () => { activeRoundId = null; showAllInRound = false; currentScreen = 'route'; render(); };
   wrap.appendChild(allBtn);
 
   if (!rounds.length) {
@@ -479,7 +481,7 @@ function renderRoundPicker() {
     const item = document.createElement('div');
     item.className = 'list-item';
     item.innerHTML = `<div><div class="stop-name">${escapeHtml(r.name)}</div><div class="stop-addr">${count} customer${count === 1 ? '' : 's'}</div></div>`;
-    item.onclick = () => { activeRoundId = r.id; currentScreen = 'route'; render(); };
+    item.onclick = () => { activeRoundId = r.id; showAllInRound = false; currentScreen = 'route'; render(); };
     wrap.appendChild(item);
   });
   return wrap;
@@ -487,12 +489,9 @@ function renderRoundPicker() {
 
 function renderRoute() {
   const wrap = document.createElement('div');
-  const customers = Data.getCustomersInRoundOrAll().filter(belongsOnTodaysRound);
-
-  if (!customers.length) {
-    wrap.innerHTML = emptyState('route', 'No stops due today', 'Nobody in this round is due — enjoy the day off.');
-    return wrap;
-  }
+  const baseCustomers = Data.getCustomersInRoundOrAll();
+  const dueCustomers = baseCustomers.filter(belongsOnTodaysRound);
+  const customers = showAllInRound ? baseCustomers : dueCustomers;
 
   const actions = document.createElement('div');
   actions.className = 'route-actions';
@@ -501,6 +500,31 @@ function renderRoute() {
     <button class="secondary" id="route-optimize-btn">Optimize order</button>
   `;
   wrap.appendChild(actions);
+
+  // Override: lets you pull up everyone in the round even if nobody is
+  // technically "due" yet by the frequency math — e.g. working a round a
+  // day or two early after a weather delay.
+  const overrideRow = document.createElement('div');
+  overrideRow.className = 'route-override-row';
+  overrideRow.innerHTML = `
+    <label class="route-override-label">
+      <input type="checkbox" id="route-show-all" ${showAllInRound ? 'checked' : ''}>
+      Show everyone in this round (override due dates)
+    </label>
+  `;
+  wrap.appendChild(overrideRow);
+  overrideRow.querySelector('#route-show-all').onchange = (e) => {
+    showAllInRound = e.target.checked;
+    render();
+  };
+
+  if (!customers.length) {
+    const emptyDiv = document.createElement('div');
+    emptyDiv.innerHTML = emptyState('route', 'No stops due today', 'Nobody in this round is due today. Tick "Show everyone" above to work it anyway.');
+    wrap.appendChild(emptyDiv);
+    return wrap;
+  }
+
   actions.querySelector('#route-map-btn').onclick = () => showMapModal(customers);
   actions.querySelector('#route-optimize-btn').onclick = () => {
     const ordered = optimizeOrder(customers);
