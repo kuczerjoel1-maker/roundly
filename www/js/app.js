@@ -306,6 +306,7 @@ function render() {
       app.classList.remove('screen-enter');
       void app.offsetWidth; // force reflow so the animation restarts every time
       app.classList.add('screen-enter');
+      window.scrollTo(0, 0);
     }
     lastRenderedScreen = currentScreen;
 
@@ -315,7 +316,6 @@ function render() {
     });
 
     maybeRunBackup();
-    window.scrollTo(0, 0);
   } catch (err) {
     const app = document.getElementById('app');
     app.innerHTML = `<div style="padding:20px; background:#FBEAE8; border:1px solid #C0392B; border-radius:8px; margin-top:20px;">
